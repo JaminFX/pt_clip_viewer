@@ -59,7 +59,7 @@ def audit_bundle(app, report_path=None):
         expected = None
         for directory, arch in (("osx-arm64", "arm64"), ("osx-x64", "x86_64"), ("osx-arm64-tcl9", "arm64"), ("osx-x64-tcl9", "x86_64")):
             prefix = f"Contents/Frameworks/tkinterdnd2/tkdnd/{directory}/"
-            if rel.startswith(prefix) and path.suffix == ".dylib" and path.name.startswith("libtkdnd"):
+            if rel.startswith(prefix) and path.suffix == ".dylib" and path.name.startswith(("libtkdnd", "libtcl9tkdnd")):
                 expected = arch
                 if arch not in found:
                     raise RuntimeError(f"Wrong TkDnD architecture: {rel}: {sorted(found)}")

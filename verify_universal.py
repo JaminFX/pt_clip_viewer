@@ -47,6 +47,13 @@ class UniversalGateTests(unittest.TestCase):
         self.bundle()
         self.assertEqual(len(audit_bundle(self.root)["binaries"]), 4)
 
+    def test_tcl9_dispatch_names_are_audited(self):
+        self.write("Contents/MacOS/PT Clip Viewer", fat())
+        self.write("Contents/Frameworks/_tkinter.so", fat())
+        self.write("Contents/Frameworks/tkinterdnd2/tkdnd/osx-arm64-tcl9/libtcl9tkdnd2.10.3.dylib", thin(0x0100000C))
+        self.write("Contents/Frameworks/tkinterdnd2/tkdnd/osx-x64-tcl9/libtcl9tkdnd2.10.3.dylib", thin(0x01000007))
+        self.assertEqual(len(audit_bundle(self.root)["binaries"]), 4)
+
     def test_accidental_thin_core_is_rejected(self):
         self.bundle()
         self.write("Contents/Frameworks/libpython.dylib", thin(0x01000007))

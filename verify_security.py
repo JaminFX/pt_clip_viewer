@@ -51,6 +51,15 @@ class ExportSecurityTests(unittest.TestCase):
             self.assertEqual(len(tracks[0]["clips"]), 1)
             self.assertEqual(tracks[0]["clips"][0]["name"], "A  B")
 
+    def test_even_length_gbk_is_not_misread_as_bomless_utf16(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "gbk.txt"
+            content = "TRACK NAME: 中文\n1 1 测试片段  00:00:01:00 00:00:02:00 00:00:01:00\n".encode("gbk")
+            if len(content) % 2:
+                content += b"\n"
+            file.write_bytes(content)
+            self.assertEqual(edl_parser.parse_edl(file)[0]["track_name"], "中文")
+
     def test_workflow_actions_are_immutable(self):
         import re
         workflow = (ROOT / ".github/workflows/macos-universal.yml").read_text(encoding="utf-8")

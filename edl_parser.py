@@ -21,6 +21,8 @@ def read_export(filepath):
     if len(content) > MAX_EDL_BYTES:
         raise ValueError("文件超过 20 MB，已拒绝读取")
     for encoding in ("utf-8-sig", "utf-16", "gbk", "latin-1"):
+        if encoding == "utf-16" and not content.startswith((b"\xff\xfe", b"\xfe\xff")):
+            continue
         try:
             return content.decode(encoding)
         except UnicodeError:
