@@ -11,6 +11,13 @@ import pt_clip_viewer as viewer
 
 
 class PlatformRegressionTests(unittest.TestCase):
+    def test_diagonal_strokes_have_partial_pixel_coverage(self):
+        from aa_graphics import stroke_mask
+        coverage = stroke_mask(18, [{"kind": "path", "points": [(4, 12), (10, 18), (20, 5)]}], samples=8)
+        self.assertTrue(any(0 < value < 255 for value in coverage))
+        self.assertIn(255, coverage)
+        self.assertIn(0, coverage)
+
     def test_mac_trackpad_and_windows_wheel(self):
         for mac, delta, expected in [(True, 1, -1), (True, -2, 2),
                                      (False, 120, -1), (False, -240, 2),

@@ -42,14 +42,17 @@ def run_visual_checks(App, output):
     output.mkdir(parents=True, exist_ok=True)
     app = App(open_dialog=False)
     try:
-        app.geometry("1400x820+20+30")
+        width = max(960, min(1400, app.winfo_screenwidth()-40))
+        height = max(600, min(820, app.winfo_screenheight()-100))
+        app.geometry(f"{width}x{height}+20+30")
         with tempfile.TemporaryDirectory() as tmp:
             sample = Path(tmp) / "Lucide_UI_Demo.txt"
             lines = []
             for name in ("Reading 朗诵", "Answer 回答", "Pickup 补录"):
                 lines.append(f"TRACK NAME: {name}")
-                for i in range(1, 7):
-                    lines.append(f"1 {i} {name} / Clip {i:02}  00:00:{i*3:02}:00 00:00:{i*3+1:02}:12 00:00:01:12")
+                for i in range(1, 25):
+                    minute, second = divmod(i*3, 60)
+                    lines.append(f"1 {i} {name} / Clip {i:02}  00:{minute:02}:{second:02}:00 00:{minute:02}:{second+1:02}:12 00:00:01:12")
             sample.write_text("\n".join(lines)+"\n", encoding="utf-8")
             app._load_path(str(sample))
             app._select_view(0)
@@ -59,6 +62,8 @@ def run_visual_checks(App, output):
             app.update()
             buttons = [w for w in descendants(app) if isinstance(w, ActionButton)]
             assert len(buttons) >= 20
+            assert all(w._text_label.winfo_class() == "Label" for w in buttons)
+            assert all(w._check_photo.width() == 18 for w in descendants(app) if hasattr(w, "_check_photo"))
             assert not [w for w in descendants(app) if w.winfo_class() == "Button"]
             assert slot["undo_btn"].cget("state") == "normal"
             assert slot["redo_btn"].cget("state") == "disabled"
@@ -72,8 +77,12 @@ def run_visual_checks(App, output):
             slot["redo_btn"].config(command=lambda: triggered.append(1))
             slot["redo_btn"].invoke()
             assert not triggered, "Disabled button invoked a command"
+            slot["redo_btn"]._text_label.event_generate("<ButtonPress-1>", x=2, y=2)
+            slot["redo_btn"]._text_label.event_generate("<ButtonRelease-1>", x=2, y=2)
+            assert not triggered, "Disabled label invoked a command"
             slot["redo_btn"].config(command=original)
-            app._copy_single()
+            app.copy_single_btn._text_label.event_generate("<ButtonPress-1>", x=2, y=2)
+            app.copy_single_btn._text_label.event_generate("<ButtonRelease-1>", x=2, y=2)
             assert "00:00:03:00-00:00:04:12" in app.clipboard_get()
             assert app.copy_single_btn._icon == "check"
             app.copy_single_btn.focus_set()

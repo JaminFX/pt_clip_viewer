@@ -1,8 +1,11 @@
 """Platform-independent dark action buttons with native-resolution Lucide strokes."""
 import json
+from functools import lru_cache
 import tkinter as tk
 import tkinter.font as tkfont
+from tkinter import ttk
 from pathlib import Path
+from aa_graphics import rounded_png, icon_png, checkbox_png
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 ICONS = json.loads((ASSETS / "lucide-paths.json").read_text(encoding="utf-8"))
@@ -26,21 +29,15 @@ def button_content(text):
     return cleaned, None
 
 
-def draw_icon(canvas, name, x, y, size, color, tag="icon"):
-    scale = size / 24
-    for shape in ICONS.get(name, []):
-        coords = shape["points"]
-        if shape["kind"] == "circle":
-            cx, cy, radius = coords
-            canvas.create_oval(x+(cx-radius)*scale, y+(cy-radius)*scale,
-                               x+(cx+radius)*scale, y+(cy+radius)*scale,
-                               outline=color, width=1.8*scale, tags=tag)
-        else:
-            points = [value for pair in coords for value in
-                      (x+pair[0]*scale, y+pair[1]*scale)]
-            if len(points) >= 4:
-                canvas.create_line(*points, fill=color, width=1.8*scale,
-                                   capstyle="round", joinstyle="round", tags=tag)
+@lru_cache(maxsize=256)
+def icon_bytes(name, size, color):
+    return icon_png(size, ICONS.get(name, []), color)
+
+
+def draw_checkbox(canvas, checked, color):
+    canvas.delete("all")
+    canvas._check_photo = tk.PhotoImage(master=canvas, data=checkbox_png(18, color, canvas.cget("bg"), bool(checked)), format="png")
+    canvas.create_image(0, 0, image=canvas._check_photo, anchor="nw")
 
 
 def tint(widget, color, amount):
@@ -64,6 +61,9 @@ class ActionButton(tk.Canvas):
         super().__init__(master, background=master.cget("bg"), borderwidth=0,
                          highlightthickness=0, takefocus=1, **canvas_options)
         self._font = tkfont.Font(self, font=self._values["font"])
+        self._text_label = tk.Label(self, font=self._font, borderwidth=0,
+                                    highlightthickness=0, padx=0, pady=0, takefocus=0)
+        self._photos = {}
         self.bind("<Configure>", self._paint)
         self.bind("<Enter>", self._enter)
         self.bind("<Leave>", self._leave)
@@ -74,6 +74,9 @@ class ActionButton(tk.Canvas):
         self.bind("<KeyPress-space>", self._key_press)
         self.bind("<KeyRelease-space>", self._key_release)
         self.bind("<Return>", self._key_release)
+        for sequence, handler in (("<Enter>", self._enter), ("<Leave>", self._leave),
+                                  ("<ButtonPress-1>", self._press), ("<ButtonRelease-1>", self._release)):
+            self._text_label.bind(sequence, handler)
         self._measure()
 
     def _measure(self):
@@ -134,7 +137,7 @@ class ActionButton(tk.Canvas):
         pressed = self._pressed
         self._pressed = False
         self._paint()
-        if pressed and 0 <= event.x < self.winfo_width() and 0 <= event.y < self.winfo_height():
+        if pressed and 0 <= event.x_root-self.winfo_rootx() < self.winfo_width() and 0 <= event.y_root-self.winfo_rooty() < self.winfo_height():
             self.invoke()
 
     def _key_press(self, event):
@@ -158,21 +161,38 @@ class ActionButton(tk.Canvas):
         fg = "#91a4bc" if disabled else self._values["fg"]
         if not disabled:
             fill = tint(self, fill, -.13 if self._pressed else .10 if self._hovered else 0)
-        w, h = max(self.winfo_width(), self.winfo_reqwidth()), max(self.winfo_height(), self.winfo_reqheight())
-        r = 6
-        pts = [1+r,1,w-r-1,1,w-1,1,w-1,1+r,w-1,h-r-1,w-1,h-1,w-r-1,h-1,
-               r+1,h-1,1,h-1,1,h-r-1,1,r+1,1,1]
+        w = self.winfo_width() if self.winfo_width() > 1 else self.winfo_reqwidth()
+        h = self.winfo_height() if self.winfo_height() > 1 else self.winfo_reqheight()
+        parent = self.master.cget("bg")
+        super().configure(bg=parent)
         focused = self.focus_get() == self and not disabled
-        self.create_polygon(pts, smooth=True, splinesteps=16, fill=fill,
-                            outline="#7dd3fc" if focused else tint(self, fill, .08), width=1)
+        border = "#7dd3fc" if focused else tint(self, fill, .12)
+        background_key = ("background", w, h, fill, border, parent)
+        if background_key not in self._photos:
+            self._photos[background_key] = tk.PhotoImage(master=self,
+                data=rounded_png(w, h, fill, border, parent), format="png")
+        self.create_image(0, 0, image=self._photos[background_key], anchor="nw")
         text_width = self._font.measure(self._label)
         total = text_width + (self._icon_size+(6 if self._label else 0) if self._icon else 0)
-        x = (w-total)/2
+        x = round((w-total)/2)
         if self._icon:
-            draw_icon(self, self._icon, x, (h-self._icon_size)/2, self._icon_size, fg)
+            icon_key = ("icon", self._icon, self._icon_size, fg)
+            if icon_key not in self._photos:
+                self._photos[icon_key] = tk.PhotoImage(master=self,
+                    data=icon_bytes(self._icon, self._icon_size, fg), format="png")
+            self.create_image(x, round((h-self._icon_size)/2), image=self._photos[icon_key], anchor="nw")
             x += self._icon_size + (6 if self._label else 0)
         if self._label:
-            self.create_text(x, h/2, text=self._label, font=self._font, fill=fg, anchor="w")
+            self._text_label.configure(text=self._label, font=self._font, fg=fg, bg=fill)
+            self._text_label.place(x=round(x), y=round(h/2), anchor="w")
+        else:
+            self._text_label.place_forget()
+
+
+class VisibleScrollbar(ttk.Scrollbar):
+    def set(self, first, last):
+        self.state(["disabled"] if float(last)-float(first) >= .999999 else ["!disabled"])
+        return super().set(first, last)
 
 
 def apply_dark_inputs(root):

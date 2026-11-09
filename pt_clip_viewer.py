@@ -114,7 +114,7 @@ import tkinter as tk
 import configparser
 from tkinter import filedialog, ttk, messagebox
 from pathlib import Path
-from ui_widgets import ActionButton, apply_dark_inputs, ASSETS
+from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
 if sys.platform == "win32":
@@ -144,7 +144,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.8"
+APP_VERSION = "v3.9.9"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -350,7 +350,7 @@ def show_about(parent):
 
     # 可滚动容器
     canvas = tk.Canvas(win, bg=BG2, highlightthickness=0)
-    sb = ttk.Scrollbar(win, orient="vertical", command=canvas.yview)
+    sb = VisibleScrollbar(win, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=sb.set)
     sb.pack(side="right", fill="y")
     canvas.pack(side="left", fill="both", expand=True)
@@ -546,7 +546,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         tk.Frame(left, bg=BORDER, height=1).pack(fill="x", padx=8, pady=4)
 
         self.track_canvas = tk.Canvas(left, bg=BG2, highlightthickness=0)
-        tsb = ttk.Scrollbar(left, orient="vertical", command=self.track_canvas.yview)
+        tsb = VisibleScrollbar(left, orient="vertical", command=self.track_canvas.yview)
         self.track_canvas.configure(yscrollcommand=tsb.set)
         self.track_canvas.pack(side="left", fill="both", expand=True)
         tsb.pack(side="right", fill="y")
@@ -592,12 +592,12 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Vertical.TScrollbar", background=BG4, troughcolor=BG2,
-                        bordercolor=BG2, arrowcolor=TEXT2, lightcolor=BG4, darkcolor=BG4,
-                        gripcount=0, arrowsize=12)
-        style.map("Vertical.TScrollbar", background=[("active", "#35506e")])
-        style.configure("Horizontal.TScrollbar", background=BG4, troughcolor=BG2,
-                        bordercolor=BG2, arrowcolor=TEXT2, lightcolor=BG4, darkcolor=BG4)
+        for orientation in ("Vertical", "Horizontal"):
+            style.configure(f"{orientation}.TScrollbar", background="#7899ba", troughcolor="#101a2a",
+                            bordercolor="#4c6c8c", arrowcolor="#e3f3ff", lightcolor="#7899ba",
+                            darkcolor="#7899ba", gripcount=0, arrowsize=15, width=15)
+            style.map(f"{orientation}.TScrollbar", background=[("disabled", "#31475f"), ("pressed", "#38bdf8"), ("active", "#b4d9f6")],
+                      arrowcolor=[("disabled", "#7891aa"), ("active", "white")])
         style.configure("Clip.Treeview", background=BG2, foreground=TEXT, rowheight=30, fieldbackground=BG2, borderwidth=0, bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER, font=FONT_UI_REG)
         style.configure("Clip.Treeview.Heading", background=BG3, foreground=TEXT2, font=FONT_UI_BOLD, relief="flat")
         style.map("Clip.Treeview", background=[("selected", ACCENT2)], foreground=[("selected", "white")])
@@ -617,7 +617,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.tree.tag_configure("odd",  background=BG2)
         self.tree.tag_configure("even", background="#152030")
 
-        clip_sb = ttk.Scrollbar(tree_wrap, orient="vertical", command=self.tree.yview)
+        clip_sb = VisibleScrollbar(tree_wrap, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=clip_sb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         clip_sb.pack(side="right", fill="y")
@@ -734,10 +734,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         _bind_wheel_recursive(self.track_list_frame)
 
     def _draw_checkbox(self, canvas, checked, color):
-        canvas.delete("all")
-        canvas.create_rectangle(1, 1, 17, 17, outline=color, width=1.5, fill=color if checked else BG4)
-        if checked:
-            canvas.create_line(3, 9, 7, 14, 15, 4, fill="white", width=2.2, capstyle="round", joinstyle="round")
+        draw_checkbox(canvas, checked, color)
 
     def _click_checkbox(self, idx, var, canvas, color):
         new_val = not var.get()
@@ -1126,7 +1123,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         scroll_wrap.pack(fill="both", expand=True)
 
         self._slot_canvas = tk.Canvas(scroll_wrap, bg=BG2, highlightthickness=0)
-        slot_sb = ttk.Scrollbar(scroll_wrap, orient="vertical", command=self._slot_canvas.yview)
+        slot_sb = VisibleScrollbar(scroll_wrap, orient="vertical", command=self._slot_canvas.yview)
         self._slot_canvas.configure(yscrollcommand=slot_sb.set)
         slot_sb.pack(side="right", fill="y")
         self._slot_canvas.pack(side="left", fill="both", expand=True)
@@ -1313,10 +1310,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             break
 
     def _draw_slot_checkbox(self, canvas, checked: bool, color: str):
-        canvas.delete("all")
-        canvas.create_rectangle(1, 1, 17, 17, outline=color, width=1.5, fill=color if checked else BG4)
-        if checked:
-            canvas.create_line(3, 9, 7, 14, 15, 4, fill="white", width=2.2, capstyle="round", joinstyle="round")
+        draw_checkbox(canvas, checked, color)
 
     def _refresh_slot_dim(self, data, inner):
         enabled = data["enabled"].get()
