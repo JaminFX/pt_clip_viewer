@@ -74,6 +74,13 @@ class ExportSecurityTests(unittest.TestCase):
             tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
             self.assertFalse(any(isinstance(node, ast.Assert) for node in ast.walk(tree)))
 
+    def test_vendored_native_runtime_hashes(self):
+        import hashlib
+        manifest = json.loads((ROOT / "vendor/manifest.json").read_text(encoding="utf-8"))
+        for name, expected in manifest["files"].items():
+            file = ROOT / "vendor/tkdnd/osx-x64-tcl9" / name
+            self.assertEqual(hashlib.sha256(file.read_bytes()).hexdigest(), expected)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

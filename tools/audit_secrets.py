@@ -40,7 +40,7 @@ def main():
         rel = file.relative_to(root)
         if any(part in (".git", "build", "__pycache__", ".venv-build", ".venv-macos") for part in rel.parts):
             continue
-        if "evidence" in rel.parts or file.is_symlink() or not file.is_file():
+        if file.is_symlink() or not file.is_file():
             continue
         if file.stat().st_size > 128*1024*1024:
             continue

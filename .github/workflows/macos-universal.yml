@@ -41,6 +41,7 @@ jobs:
           .venv-macos/bin/python verify_release.py
           .venv-macos/bin/python verify_universal.py
           .venv-macos/bin/python verify_security.py
+          .venv-macos/bin/python tools/runtime_inventory.py release/runtime-inventory-macos.json
           .venv-macos/bin/python build_app.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -48,6 +49,7 @@ jobs:
           path: |
             ${{ env.APP_DIR }}/release/*_macOS_Universal2.dmg
             ${{ env.APP_DIR }}/release/*_Universal2_architectures.json
+            ${{ env.APP_DIR }}/release/runtime-inventory-macos.json
           if-no-files-found: error
           retention-days: 14
 

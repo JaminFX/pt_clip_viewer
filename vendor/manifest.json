@@ -1,0 +1,17 @@
+{
+  "version": "2.10.3",
+  "source": "https://github.com/Squiblydoo/tkdnd",
+  "commit": "f2b256ecf374595fa20005c479655e9fd72889f8",
+  "workflow": "https://github.com/JaminFX/pt_clip_viewer/actions/runs/42593140525",
+  "files": {
+    "libtcl9tkdnd2.10.3.dylib": "9fc28d029243b78c3bd94dda63773fbde9df01c12995eba0cc6a3493fe0e9eda",
+    "pkgIndex.tcl": "878e0450094e5c9ae10f30adea1719f891b9cd7410299d9b3cfb87b1a60ed9b7",
+    "tkdnd.tcl": "d47acfd2e2d5426c40e8f5c11646c49a7ecdadc92c73f9c3f47eb0ea6fbba4b7",
+    "tkdnd_compat.tcl": "58b0aebd287df1d2cfe16231847b786ac9a3a2d18fff2a8a37955510221d10f5",
+    "tkdnd_generic.tcl": "100d8b4199809f387b06cad1736f82536238c74ddbf7c6a87abbc1aa62cbbdf5",
+    "tkdnd_macosx.tcl": "8df2832dd834cd5347f42ef62a9fd8c14b6b473e2a9f8007db6c31a606ca4ab9",
+    "tkdnd_unix.tcl": "a314a90863eef53db04203eaf637dff9324f0178d63c680b5bff7c4467a125f9",
+    "tkdnd_utils.tcl": "fff7b046dfa50992dd3151c74291558c13a675efcaa758ce53d4d4a6ebebbb43",
+    "tkdnd_windows.tcl": "991f878a7a45c83cb5403ad82a768211b12640bf2b8b0cbceb8385b293d10809"
+  }
+}
