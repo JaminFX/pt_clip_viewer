@@ -73,7 +73,14 @@ jobs:
           else
             CHECK=pt_clip_viewer/verify_macos_dmg.py
           fi
-          python "$CHECK" candidate/*_macOS_Universal2.dmg
+          python "$CHECK" candidate/*_macOS_Universal2.dmg ui-preview
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: UI-preview-${{ matrix.runner }}
+          path: ui-preview/*.png
+          if-no-files-found: warn
+          retention-days: 14
 
   verified:
     needs: [build, native-test]

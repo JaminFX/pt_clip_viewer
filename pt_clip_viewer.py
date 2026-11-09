@@ -97,7 +97,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# ==================== 以下为原作者脚本正文（未改动任何逻辑） ===================
+# ==================== 应用正文 ===================
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -114,6 +114,7 @@ import tkinter as tk
 import configparser
 from tkinter import filedialog, ttk, messagebox
 from pathlib import Path
+from ui_widgets import ActionButton, apply_dark_inputs, ASSETS
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
 if sys.platform == "win32":
@@ -139,17 +140,11 @@ try:
 except ImportError:
     DND_AVAILABLE = False
 
-# ── 图标（Lucide "settings"，ISC License，https://lucide.dev）──────────────────
-_ICON_SETTINGS_BTN_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAADjUlEQVR4nIVU3U9bdRh+3l/POT18Q9dBC20xkUwTLkYY6sqmjAvNQhYvnKEbiR+ZW3Y1k7FdeaHxDxiYeLULBDHY0mSJNzQzxkAcbZmyBaMsYXEO+kFL+RhIaU972vN6AXQsMfJe/T7evO/v+T3P8wKHhP/B8gn/g+UTh+VRacVMfkDMT4FaV8FwRBUDGK6srvUAwE56y0cGX4LbmZ+fArWeAfcCBogYAKS9KgQi7gWK+3W94aV3620uz0p8sd8kBKx210Aq/vSHi0TjL76FCSAmZiYi4tu3Z+UjHU1n9XxBhlZ4aFLlIQa/5nE7qwHAF45uE3Df0AqXoUrtsiLp67Pxu1evdujMTBIAjM4lKlStOFFTY+3SshkU1QIUsxmb6+vX9/saRePzWot1IK9qT02SBLWsHEabMTX6Y+IcgIxERPx9aOn9Gquta3Ul0UfMMbOqntx6lg32vdkcCgQem9EC9BxrHvSFFn81qxXubHpzJr254bI0NI4ZxeR5IhqVAEBA1BX0PLKZ7P1P3n7lbwD3duHEBnYEXcGW4PFwbMjjdlwHEASAkcAfLxcsOgBYAICYmXy//OVQq2rnDDZ28mn9lM1oSiSVyMBRu/PaWjI2AgBHbY6PU4no17a8qz9ZEbebTUpQCCov5rS2995wxMHMAgCGJxfaAo/S7A0u3tz7XN0Xig6XWAxGRsZD0TwAjM9Ebk48SvPozwvHd5XDQuwnyvvCEoL/X3AAirv7onh+vAvtt7hDlcxzzJzOpbdO24yWRFKJDNTbnddSidi3AFBvd3xUgibidnOVMk2gSm17s+3CWy2xEmtKhWpZX4t3fNj1anSvyaf+UFSXZOkKAKyvLA9ePNXcv3cXHfppodvW2PgkpynniegrCQBMwIYkK5CF2e2dXnLIZao7l0mHejudNwKBx58BQE/PsdzYvSenzeWVnXpWC0OQU5IVANgoQfvu92S5qhUn6qwNu4Is6FDUMmw+W+vv62weBICx6aX+uiPWW3ktC5MkQy0rx8baylRuy3Tug3dsmZJFvpiclI5XtZ7V8ppscOGhLOQhEL3uOekoWUSQmMkXc5cFSe2youp/bs/f/bK7u8DMRAeNd5AY7/SSp77J5UvFF2/AJFBvc91aSUQ8fZ3N/hf53DPt8/2BMXIGjHBUYfA3FdV1FxiMne1/vA02x6XVl6D/1xg5NO7MptrvzKbaD8v7FwGFqzeHnrrFAAAAAElFTkSuQmCC"
-)
-_ICON_SETTINGS_TITLE_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAC8UlEQVR4nI2VT28bVRTFz5vYUJGEWJAuQLDKqhvoInsqBbWfgQVfoMl3cAWoCPaUHSwQMZRtYYnNDqRU6oKIpaXGnn+28XjejMfxn/mxsGdq4qrKXb03Ojr33HvPuyNdI4KMgyDj4DrYjQAMYOp1nH967AYJjWgB0QKClNMAdup1nAL3KiKnAABVwHQtXwB4Cad+QgOga/l8RVZdE+BsqFo7v1Gcw5TzMCUo7wlhmPL3y7AlR8HeSbg9vKTVH5P4CS3P8huAZ/lmpbjqWR4B+JZf/WSJjaY0O0Nul1yAaQ+phRkdm4Mb0/QSbD8jDzN+9Dy2CxUebAcZp/2M3LNYN6ZpcwgzOu0htVKlb/kYoGM5lqT2kFo3Zl+Snnls92fc7c+4+2xF3o3Zbw+pSVI34gSgl3EkSRVJyh1FuaTXHB0CFWNMJEkXlju7r+uHvYrek6TKvjqe5dN3dk1Lks7OqFarOswlKVe0Pl2na3m86s9DwHRGvN3L8EZTMs9y7FmOR1OyXoYXwVuA8S1fArgxPxc8pe+ArTDhryBlsmrDEUAn4n7RQzfm/irpkST5CZdhwp/AVsFT+qfVkpEjiSsGXXNYnmvDyOjKt7WSf9koebwsuRtx4llOoksm/Qy3KDlMebiy1uOyZEnqpRwugDDlO6BSJLuw3BnNeM4qRjOeuzEfrYmphCnfLwA34rAsaJGr5kia5npqjJm3oebG3Hx/17Ta57o1mOveYKJ77XPdevdN84cbc7M9pGaMmc9meupIcra0V2T5n7E9S8u3JIMJBCkNeGFsYLuX0RhMwE+wnqVlgXBM51/YA0z59C4SPowuaQ7GWD+m6VqerPrzCKieLZ/etwCu5YmfLLHRlN99ywfFPEqVhYpu98WDD1LOg4SwuF9dDuvYjVV2dX3V6zjeclXhJzT8mJ9Wij+rL7EvXV/lRI0x+VqmuSTj7OircKyDGzf0iSSFY506O/paDyQ90Bwwxhi06d5XR5BxEETX+wX8B2cPH+pj2CC2AAAAAElFTkSuQmCC"
-)
+# Lucide vector icons and license are stored in assets/.
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.7"
+APP_VERSION = "v3.9.8"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -167,7 +162,7 @@ BG3     = "#1a2336"
 BG4     = "#1e2d47"
 BORDER  = "#243044"
 ACCENT  = "#38bdf8"
-ACCENT2 = "#0ea5e9"
+ACCENT2 = "#087ea4"
 GREEN   = "#22c55e"
 AMBER   = "#f59e0b"
 RED     = "#ef4444"
@@ -443,7 +438,7 @@ def show_about(parent):
     cmd_entry2.config(state="readonly")
     cmd_entry2.pack(fill="x", padx=8, pady=6)
 
-    tk.Button(inner, text="关闭", command=win.destroy, bg=ACCENT2, fg="white",
+    ActionButton(inner, text="关闭", command=win.destroy, bg=ACCENT2, fg="white",
               relief="flat", font=FONT_UI_BOLD, padx=24, pady=6,
               cursor="hand2").pack(pady=(18, 4))
 
@@ -459,6 +454,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.minsize(960, 600)
         self.configure(bg=BG)
+        apply_dark_inputs(self)
 
         apply_icon(self)
 
@@ -476,8 +472,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         reading_ask_val = self._cfg["settings"].get("reading_merge_ask", "true").lower() != "false"
         self._reading_merge_ask = tk.BooleanVar(value=reading_ask_val)
 
-        self._icon_settings_btn   = tk.PhotoImage(data=_ICON_SETTINGS_BTN_B64)
-        self._icon_settings_title = tk.PhotoImage(data=_ICON_SETTINGS_TITLE_B64)
+        self._icon_settings_btn   = tk.PhotoImage(file=str(ASSETS / "settings.png"))
+        self._icon_settings_title = tk.PhotoImage(file=str(ASSETS / "settings.png"))
 
         self._build_ui()
         self._toggle_edit_mode()      # 默认打开编辑模式
@@ -503,16 +499,16 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         inner = tk.Frame(topbar, bg=BG2)
         inner.pack(fill="x", padx=14, pady=8)
 
-        tk.Button(inner, text="📂  打开文件", command=self.load_file, bg=ACCENT2, fg="white", relief="flat", font=FONT_UI_BOLD, padx=14, pady=5, cursor="hand2").pack(side="left")
+        ActionButton(inner, text="📂  打开文件", command=self.load_file, bg=ACCENT2, fg="white", relief="flat", font=FONT_UI_BOLD, padx=14, pady=5, cursor="hand2").pack(side="left")
 
         self.file_label = tk.Label(inner, text="未选择文件", bg=BG2, fg=TEXT2, font=FONT_UI_REG)
         self.file_label.pack(side="left", padx=14)
 
-        tk.Button(inner, text="ℹ  关于", command=lambda: show_about(self), bg=BG3, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2").pack(side="right")
+        ActionButton(inner, text="ℹ  关于", command=lambda: show_about(self), bg=BG3, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2").pack(side="right")
 
-        tk.Button(inner, text=" 设置", image=self._icon_settings_btn, compound="left", command=self._show_settings, bg=BG3, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2").pack(side="right", padx=(0, 6))
+        ActionButton(inner, text=" 设置", image=self._icon_settings_btn, compound="left", command=self._show_settings, bg=BG3, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2").pack(side="right", padx=(0, 6))
 
-        self.edit_mode_btn = tk.Button(inner, text="✏  编辑模式", command=self._toggle_edit_mode, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2")
+        self.edit_mode_btn = ActionButton(inner, text="编辑模式", command=self._toggle_edit_mode, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=5, cursor="hand2")
         self.edit_mode_btn.pack(side="right", padx=(0, 8))
 
         tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
@@ -544,8 +540,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         sel_bar = tk.Frame(left, bg=BG2)
         sel_bar.pack(fill="x", padx=8, pady=(6, 2))
-        tk.Button(sel_bar, text="全选", command=self._select_all, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
-        tk.Button(sel_bar, text="全不选", command=self._deselect_all, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2").pack(side="left")
+        ActionButton(sel_bar, text="全选", command=self._select_all, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
+        ActionButton(sel_bar, text="全不选", command=self._deselect_all, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2").pack(side="left")
 
         tk.Frame(left, bg=BORDER, height=1).pack(fill="x", padx=8, pady=4)
 
@@ -582,13 +578,13 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         btns = tk.Frame(ctrl, bg=BG)
         btns.pack(side="right")
 
-        self.copy_single_btn = tk.Button(btns, text="📋 复制当前轨道", command=self._copy_single, bg="#0ea5e9", fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
+        self.copy_single_btn = ActionButton(btns, text="📋 复制当前轨道", command=self._copy_single, bg="#087ea4", fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
         self.copy_single_btn.pack(side="left", padx=(0, 6))
 
-        self.copy_sel_btn = tk.Button(btns, text="📋 合并所选轨道", command=self._copy_selected, bg=ACCENT2, fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
+        self.copy_sel_btn = ActionButton(btns, text="📋 合并所选轨道", command=self._copy_selected, bg=ACCENT2, fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
         self.copy_sel_btn.pack(side="left", padx=(0, 6))
 
-        self.copy_all_btn = tk.Button(btns, text="📋 合并全部", command=self._copy_all, bg="#0d9488", fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
+        self.copy_all_btn = ActionButton(btns, text="📋 合并全部", command=self._copy_all, bg="#0d9488", fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
         self.copy_all_btn.pack(side="left")
 
         tree_wrap = tk.Frame(right, bg=BG)
@@ -596,7 +592,13 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Clip.Treeview", background=BG2, foreground=TEXT, rowheight=30, fieldbackground=BG2, borderwidth=0, font=FONT_UI_REG)
+        style.configure("Vertical.TScrollbar", background=BG4, troughcolor=BG2,
+                        bordercolor=BG2, arrowcolor=TEXT2, lightcolor=BG4, darkcolor=BG4,
+                        gripcount=0, arrowsize=12)
+        style.map("Vertical.TScrollbar", background=[("active", "#35506e")])
+        style.configure("Horizontal.TScrollbar", background=BG4, troughcolor=BG2,
+                        bordercolor=BG2, arrowcolor=TEXT2, lightcolor=BG4, darkcolor=BG4)
+        style.configure("Clip.Treeview", background=BG2, foreground=TEXT, rowheight=30, fieldbackground=BG2, borderwidth=0, bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER, font=FONT_UI_REG)
         style.configure("Clip.Treeview.Heading", background=BG3, foreground=TEXT2, font=FONT_UI_BOLD, relief="flat")
         style.map("Clip.Treeview", background=[("selected", ACCENT2)], foreground=[("selected", "white")])
 
@@ -628,7 +630,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.preview = tk.Text(prev_wrap, height=4, bg=BG2, fg="#38bdf8", font=FONT_CODE, relief="flat", state="disabled")
         self.preview.pack(fill="x")
 
-        self._drawer = tk.Frame(self._body, bg=BG2, width=320)
+        self._drawer = tk.Frame(self._body, bg=BG2, width=360)
         self._drawer.pack_propagate(False)
         self._build_edit_drawer()
 
@@ -985,10 +987,10 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             save_config(self._cfg)
             win.destroy()
 
-        tk.Button(btn_row, text=ok_text, command=lambda: finish("merge"),
+        ActionButton(btn_row, text=ok_text, command=lambda: finish("merge"),
                   bg=GREEN, fg="white", relief="flat", font=FONT_UI_BOLD,
                   padx=14, pady=6, cursor="hand2").pack(side="left")
-        tk.Button(btn_row, text="保持原样", command=lambda: finish("keep"),
+        ActionButton(btn_row, text="保持原样", command=lambda: finish("keep"),
                   bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_REG,
                   padx=14, pady=6, cursor="hand2").pack(side="left", padx=(10, 0))
 
@@ -1049,11 +1051,11 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         btns = tk.Frame(body, bg=BG2)
         btns.pack(fill="x")
-        tk.Button(btns, text="保存并关闭", command=_save_and_close,
+        ActionButton(btns, text="保存并关闭", command=_save_and_close,
                   bg=ACCENT2, fg="white", relief="flat",
                   font=FONT_UI_BOLD, padx=20, pady=5,
                   cursor="hand2").pack(side="left")
-        tk.Button(btns, text="取消", command=win.destroy,
+        ActionButton(btns, text="取消", command=win.destroy,
                   bg=BG4, fg=TEXT2, relief="flat",
                   font=FONT_UI_REG, padx=14, pady=5,
                   cursor="hand2").pack(side="left", padx=(10, 0))
@@ -1075,7 +1077,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         lines = self._maybe_merge_lines(lines, self._bridge_ranges(self.view_idx))
         text  = "\n".join(lines)
         self._set_preview(text)
-        self._do_copy(text, self.copy_single_btn, "📋 复制当前轨道", "#0ea5e9")
+        self._do_copy(text, self.copy_single_btn, "📋 复制当前轨道", "#087ea4")
 
     def _copy_selected(self):
         if not self.selected_set:
@@ -1097,7 +1099,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self._set_preview(text)
         self._do_copy(text, self.copy_all_btn, "📋 合并全部", "#0d9488")
 
-    def _do_copy(self, text: str, btn: tk.Button, orig: str, orig_bg: str):
+    def _do_copy(self, text: str, btn: ActionButton, orig: str, orig_bg: str):
         self.clipboard_clear()
         self.clipboard_append(text)
         btn.config(text="✅  已复制！", bg="#16a34a")
@@ -1115,7 +1117,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         hdr = tk.Frame(drawer, bg=BG3)
         hdr.pack(fill="x")
-        tk.Label(hdr, text="✏  编辑模式", bg=BG3, fg=AMBER, font=FONT_UI_BOLD).pack(side="left", padx=12, pady=8)
+        tk.Label(hdr, text="编辑模式", bg=BG3, fg=AMBER, font=FONT_UI_BOLD).pack(side="left", padx=12, pady=8)
         tk.Label(hdr, text="勾选分组参与复制", bg=BG3, fg=TEXT3, font=FONT_UI_SM).pack(side="left")
 
         tk.Frame(drawer, bg=BORDER, height=1).pack(fill="x")
@@ -1154,9 +1156,9 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         btn_row = tk.Frame(bottom, bg=BG3)
         btn_row.pack(fill="x", padx=10, pady=8)
 
-        tk.Button(btn_row, text="＋ 添加分组", command=self._add_slot, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=4, cursor="hand2").pack(side="left")
+        ActionButton(btn_row, text="＋ 添加分组", command=self._add_slot, bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_REG, padx=10, pady=4, cursor="hand2").pack(side="left")
 
-        self._edit_copy_btn = tk.Button(btn_row, text="📋 复制勾选分组", command=self._edit_copy_all, bg=AMBER, fg=BG, relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2")
+        self._edit_copy_btn = ActionButton(btn_row, text="📋 复制勾选分组", command=self._edit_copy_all, bg=AMBER, fg=BG, relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2")
         self._edit_copy_btn.pack(side="right")
 
         self.bind(f"<{MODIFIER}-z>", self._global_undo)
@@ -1214,7 +1216,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         name_entry = tk.Entry(title_row, textvariable=data["label"], bg=BG4, fg=TEXT, insertbackground=TEXT, relief="flat", font=FONT_UI_REG, width=10)
         name_entry.pack(side="left", padx=(2, 4), ipady=3)
 
-        del_btn = tk.Button(title_row, text="✕", command=lambda f=slot_frame, d=data: self._remove_slot(f, d), bg=BG3, fg=TEXT3, relief="flat", font=FONT_UI_REG, padx=4, pady=0, cursor="hand2")
+        del_btn = ActionButton(title_row, text="✕", command=lambda f=slot_frame, d=data: self._remove_slot(f, d), bg=BG3, fg=TEXT3, relief="flat", font=FONT_UI_REG, padx=4, pady=0, cursor="hand2")
         del_btn.pack(side="right")
 
         clips_frame = tk.Frame(inner, bg=BG3)
@@ -1257,22 +1259,22 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         act_row = tk.Frame(inner, bg=BG3)
         act_row.pack(fill="x", pady=(4, 0))
 
-        add_btn = tk.Button(act_row, text="＋ 添加当前轨道", command=lambda d=data, lb=clips_listbox: self._slot_add_current(d, lb), bg=color, fg=BG, relief="flat", font=FONT_UI_BOLD, padx=8, pady=3, cursor="hand2")
+        add_btn = ActionButton(act_row, text="＋ 添加轨道", command=lambda d=data, lb=clips_listbox: self._slot_add_current(d, lb), bg=color, fg=BG, relief="flat", font=FONT_UI_BOLD, padx=8, pady=3, cursor="hand2")
         add_btn.pack(side="left")
 
-        del_line_btn = tk.Button(act_row, text="删除选中行", command=lambda d=data, lb=clips_listbox: self._slot_del_selected(d, lb), bg=BG4, fg=TEXT3, relief="flat", font=FONT_UI_SM, padx=8, pady=3, cursor="hand2", state="disabled")
+        del_line_btn = ActionButton(act_row, text="删除选中", command=lambda d=data, lb=clips_listbox: self._slot_del_selected(d, lb), bg=BG4, fg=TEXT3, relief="flat", font=FONT_UI_SM, padx=8, pady=3, cursor="hand2", state="disabled")
         del_line_btn.pack(side="left", padx=(6, 0))
 
-        clr_btn = tk.Button(act_row, text="清空", command=lambda d=data, lb=clips_listbox: self._slot_clear(d, lb), bg=BG4, fg=TEXT3, relief="flat", font=FONT_UI_SM, padx=8, pady=3, cursor="hand2", state="disabled")
+        clr_btn = ActionButton(act_row, text="清空", command=lambda d=data, lb=clips_listbox: self._slot_clear(d, lb), bg=BG4, fg=TEXT3, relief="flat", font=FONT_UI_SM, padx=8, pady=3, cursor="hand2", state="disabled")
         clr_btn.pack(side="right")
 
         ur_row = tk.Frame(inner, bg=BG3)
         ur_row.pack(fill="x", pady=(3, 0))
 
-        undo_btn = tk.Button(ur_row, text="↩ 撤销", command=lambda d=data, lb=clips_listbox: self._slot_undo(d, lb), bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2", state="disabled")
+        undo_btn = ActionButton(ur_row, text="↩ 撤销", command=lambda d=data, lb=clips_listbox: self._slot_undo(d, lb), bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2", state="disabled")
         undo_btn.pack(side="left")
 
-        redo_btn = tk.Button(ur_row, text="↪ 回撤", command=lambda d=data, lb=clips_listbox: self._slot_redo(d, lb), bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2", state="disabled")
+        redo_btn = ActionButton(ur_row, text="↪ 回撤", command=lambda d=data, lb=clips_listbox: self._slot_redo(d, lb), bg=BG4, fg=TEXT2, relief="flat", font=FONT_UI_SM, padx=8, pady=2, cursor="hand2", state="disabled")
         redo_btn.pack(side="left", padx=(6, 0))
 
         tk.Label(ur_row, text=UNDO_HINT, bg=BG3, fg=TEXT3, font=FONT_UI_SM).pack(side="left", padx=(8, 0))
@@ -1498,13 +1500,16 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             self.edit_mode_btn.config(bg=AMBER, fg=BG, text="✕  关闭编辑")
         else:
             self._drawer.pack_forget()
-            self.edit_mode_btn.config(bg=BG4, fg=TEXT2, text="✏  编辑模式")
+            self.edit_mode_btn.config(bg=BG4, fg=TEXT2, text="编辑模式")
 
 
 # ── 入口 ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--smoke-test":
+    if len(sys.argv) == 3 and sys.argv[1] == "--ui-preview":
+        from ui_validation import run_visual_checks
+        run_visual_checks(App, sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "--smoke-test":
         import tempfile
         app = App(open_dialog=False)
         try:

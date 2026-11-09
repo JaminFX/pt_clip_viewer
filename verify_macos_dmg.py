@@ -28,6 +28,9 @@ def main():
                             "--smoke-test", str(report)], check=True, timeout=60)
             if report.read_text(encoding="utf-8").strip() != "OK":
                 raise RuntimeError("Application smoke check failed")
+            if len(sys.argv) > 2:
+                subprocess.run(["/usr/bin/arch", f"-{arch}", str(app / "Contents/MacOS/PT Clip Viewer"),
+                                "--ui-preview", str(Path(sys.argv[2]).resolve())], check=True, timeout=90)
             print(f"PASS: same Universal 2 DMG runs natively on {arch}")
         finally:
             subprocess.run(["hdiutil", "detach", str(mount)], check=True, timeout=60)
