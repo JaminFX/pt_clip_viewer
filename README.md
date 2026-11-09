@@ -1,5 +1,9 @@
 # PT Clip Viewer
 
+<img src="assets/app-icon.png" width="96" alt="PT Clip Viewer app icon" />
+
+当前版本：**3.9.8**。修复 Mac 深色按钮，统一 Lucide 矢量操作图标和应用图标。
+
 Pro Tools 导出文本中的片段时间码查看、合并与复制工具。概念：JaminFX。
 
 ## Windows
@@ -25,6 +29,8 @@ TkDnD 以两个独立原生库按进程架构加载。
 
 ## 已完成的构建验证
 
-[Universal 2 构建与双架构原生测试](https://github.com/JaminFX/pt_clip_viewer/actions/runs/42579664876) 已全部通过。
+[Universal 2 构建与双架构原生测试](https://github.com/JaminFX/pt_clip_viewer/actions/runs/42584292449) 已全部通过。
 同一 DMG 在 macOS 15 的 Intel x86_64 与 Apple Silicon arm64 环境中完成验证。
 
+
+3.9.8 另外检查按钮启用/禁用、撤销/重做和复制，并导出两种架构的界面截图。
