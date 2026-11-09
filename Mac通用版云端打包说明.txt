@@ -4,9 +4,9 @@ PT Clip Viewer — Intel / Apple Silicon Universal 2
 当前状态
 --------
 已准备 Universal 2 构建脚本、二进制架构检查和 GitHub Actions 工作流。
-已生成 release/PT_Clip_Viewer_3.9.8_macOS_Universal2.dmg。
+已生成 release/PT_Clip_Viewer_3.9.9_macOS_Universal2.dmg。
 同一 DMG 已分别在 Intel x86_64 和 Apple Silicon arm64 的 macOS 15 云端运行器上通过验证。
-验证记录：https://github.com/JaminFX/pt_clip_viewer/actions/runs/42584292449
+验证记录：https://github.com/JaminFX/pt_clip_viewer/actions/runs/42587417641
 验证涵盖架构、签名完整性、启动、中文文件导入和剪贴板；手动拖拽及完整交互仍需验收。
 
 没有 Mac 的打包方法
@@ -20,8 +20,8 @@ PT Clip Viewer — Intel / Apple Silicon Universal 2
 5. 在该次运行的 Artifacts 中下载：
    PT-Clip-Viewer-macOS-Universal2-VERIFIED
 6. 解压后得到：
-   PT_Clip_Viewer_3.9.8_macOS_Universal2.dmg
-   PT_Clip_Viewer_3.9.8_Universal2_architectures.json
+   PT_Clip_Viewer_3.9.9_macOS_Universal2.dmg
+   PT_Clip_Viewer_3.9.9_Universal2_architectures.json
    只有通过双架构原生检查后，才会产生 VERIFIED 制品。
    candidate 制品只是构建候选版本，不代表两个架构均已运行通过。
 

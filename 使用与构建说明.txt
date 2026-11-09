@@ -1,14 +1,14 @@
-PT Clip Viewer 3.9.8
+PT Clip Viewer 3.9.9
 ====================
 
 交付内容
-1. release/PT_Clip_Viewer_Setup_3.9.8_Windows_x64.exe：Windows 安装程序。
+1. release/PT_Clip_Viewer_Setup_3.9.9_Windows_x64.exe：Windows 安装程序。
    双击安装，无需安装 Python；支持开始菜单、可选桌面快捷方式及卸载。
-2. release/PT_Clip_Viewer_3.9.8_macOS_Source.zip：Mac 源码与一键构建工具。
+2. release/PT_Clip_Viewer_3.9.9_macOS_Source.zip：Mac 源码与一键构建工具。
    这是源码包，不是已构建好的 .app 或 .dmg。
-   Universal 2 更新包为 release/PT_Clip_Viewer_3.9.8_macOS_Universal2_BuildKit.zip。
+   Universal 2 更新包为 release/PT_Clip_Viewer_3.9.9_macOS_Universal2_BuildKit.zip。
    无 Mac 的用户可参照“Mac通用版云端打包说明.txt”，使用附带的 GitHub Actions。
-3. release/PT_Clip_Viewer_3.9.8_macOS_Universal2.dmg：已构建的 Mac 通用安装镜像。
+3. release/PT_Clip_Viewer_3.9.9_macOS_Universal2.dmg：已构建的 Mac 通用安装镜像。
    同一 DMG 已通过 Intel 与 Apple Silicon 的 macOS 15 云端原生验证。
 4. 原来的 pt_clip_viewer.exe、_internal 和 v3_9_6.py 原样保留。
 
@@ -23,7 +23,7 @@ Mac 使用与构建
 3. 在“终端”输入 bash 和空格，将 build_macos.command 拖入终端，再按回车。
    第一次构建需要联网安装依赖。
    如果已赋予执行权限，也可双击 build_macos.command。
-4. 成功后 release 目录生成 PT_Clip_Viewer_3.9.8_macOS_Universal2.dmg。
+4. 成功后 release 目录生成 PT_Clip_Viewer_3.9.9_macOS_Universal2.dmg。
    主程序、Python、Tk 同时包含 Intel x86_64 与 Apple Silicon arm64；
    拖拽库包含分别供两种架构加载的组件。构建会检查每一项，缺失时停止。
    本机构建仅执行当前架构的启动检查；云端工作流对同一 DMG 执行双架构检查。
@@ -37,7 +37,8 @@ Mac 包只做本地 ad-hoc 签名，没有 Apple Developer ID 签名和公证；
 
 本次适配
 --------
-3.9.8：修复 macOS 按钮发白；统一 Canvas 深色按钮、Lucide 矢量操作图标与新应用图标。
+3.9.9：修复 macOS 按钮发白；恢复原始亮蓝 LOGO；按钮圆角、Lucide 操作图标和勾选框增加抗锯齿处理。
+按钮文字采用原生 Label 绘制；提亮可滚动滑块并区分不可滚动状态。
 增加按钮状态、撤销/重做和复制检查；云端同时导出主窗口与设置窗口截图。
 Mac 使用 PingFang SC / Menlo 字体，不再运行 Windows 字体拦截。
 修复 Mac 触控板小幅滚动没有响应的问题。
