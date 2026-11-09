@@ -1,0 +1,332 @@
+PT Clip Viewer 安全审核报告
+
+2026-11-09 · 3.9.9 → 3.9.10 · 已修复项、验证证据与剩余风险
+
+一、项目概况与结论
+
+审核日期：2026-11-09（Australia/Sydney）。项目：PT Clip Viewer，审核基线 3.9.9，修复后交付 3.9.10。
+
+项目为离线桌面应用：Python + Tkinter/ttk + tkinterdnd2；使用 PyInstaller onedir 打包，Windows 使用 Inno Setup，Mac 使用 Universal 2 DMG。无 Web 服务、数据库、浏览器扩展或用户登录系统。
+
+直接 Python 依赖 3 个；跨平台锁文件固定 10 个不同包（Windows 实际 9 个，Mac 实际 8 个）。Python、Tcl/Tk、TkDnD 和系统构建工具单列核对。临时图标制作 Node 工具不属于产品依赖，已单独 npm audit 并随临时文件清理。
+
+确认并修复了可重现的文本解析拒绝服务问题、读取边界和发布供应链配置问题。未发现已证实的应用命令执行、注入、越权或真实凭据泄露。更新后 pip-audit 未报告已知依赖漏洞；这不等于永远没有漏洞，也不替代运行路径分析。
+
+严重性列采用上游公告的 Critical/High 标记时，说明列同时注明本项目是否能触发。尤其不能把 Pillow 的上游 Critical 直接解释成这个时间码工具存在可利用的远程代码执行。
+
+
+
+二、问题汇总
+
+编号 | 类别 | 严重级别 | 位置 | 状态 | 风险、利用条件及处理 |
+
+SEC-01 | 代码 | Medium | 旧 pt_clip_viewer.py 的 parse_edl；现 edl_parser.py:33 | 已修复 | 恶意导出文本的长空白行触发正则回溯；需要用户导入攻击文件。旧实现 500 空格测试超过 3 秒未返回。现改为分步固定字段扫描。 |
+
+SEC-02 | 代码 | Low | edl_parser.py:12；pt_clip_viewer.py:605 | 已修复 | 旧版仅在读取前 stat 检查大小，随后不限量读取；文件变动可能绕过限制，读取失败也会抛出未处理异常。现对已打开描述符验证普通文件，最多读取 20 MB+1，统一处理读取错误。 |
+
+SEC-03 | 依赖 | Critical | requirements-build.txt:3；Pillow 12.2.0 | 已修复 | 上游有 Critical/High 公告；本项目没有把 EDL/用户图片送入 Pillow 解码器，当前应用也未打包 Pillow，不能据此断言应用存在可利用的图片 RCE。构建与截图依赖仍升级到 13.0.0，并锁定哈希。 |
+
+SEC-04 | 依赖 | Medium | 旧构建环境 setuptools 82.0.1 | 已修复 | 上游 MANIFEST Unicode 排除绕过，以及 legacy wheel 安装路径问题；本项目不发布 sdist、不调用 legacy 安装器。更新到 84.2.1，安装只接受锁定的二进制发行文件。 |
+
+SEC-05 | 依赖 | High | 旧安装包 Python 3.12.5（Windows）/3.12.10（Mac） | 已修复 | 低于当前安全修订版。业务不使用 tarfile 或网络接口，但旧构建解释器的 pip/TLS 仍需关注。按用户授权的最快路线升级至官方 Python 3.14.10，并完成 Tk 9 兼容验证。 |
+
+SEC-06 | 依赖 | Low | 旧 PyInstaller 6.20.0；build_app.py | 已修复 | 复核 GHSA-9fxf-4qw3-ghmr：上游 High 针对提权 onefile；本项目是 onedir，安装权限 lowest，不满足该提权利用条件。仍预防升级到 6.22.3；修复版本为 6.22.1。 |
+
+SEC-07 | 代码 | Medium | .github/workflows/macos-universal.yml:14 等 | 已修复 | Action 使用可移动的 v4/v5 标签，存在构建供应链漂移风险。全部改为 40 位 commit SHA；保留 contents:read，并关闭构建 checkout 的凭据持久化。 |
+
+SEC-08 | 依赖 | Medium | requirements-build.lock；requirements-runtime.lock | 已修复 | 原先只固定 3 个直接依赖，关键间接依赖随时间变化。现固定跨平台 10 个包的版本和发行文件 SHA-256；安装使用 --require-hashes 和 --only-binary。 |
+
+SEC-09 | 代码 | Low | pt_clip_viewer.py:1448；ui_validation.py；build_app.py:112 | 已修复 | 发布验证使用 assert，优化模式下会消失；旧 smoke 标记也可能被复用。改为显式 RuntimeError，并在验证前移除旧标记。Mac 系统工具改用绝对路径，避免依赖 PATH 查找。 |
+
+SEC-10 | 密钥 | Low | .gitignore | 已修复 | 没有发现真实密钥泄露；原忽略规则缺少 .env、私钥和签名证书类型。已补充防误提交规则，不凭空创建密钥配置或要求轮换未发现的凭据。 |
+
+SEC-11 | 代码 | Medium | Mac 发布签名；Windows 安装包签名 | 建议关注 | Mac 只有 ad-hoc 签名，没有 Developer ID 和公证；Windows 无发布者代码签名。哈希与来源可核对，但不能代替发布者身份认证。用户当前选择保留系统内单独允许打开的方式，并已编写使用说明。 |
+
+
+
+三、依赖版本与公告交叉核对
+
+包 | 关系 | 基线版本 | 修复后锁定版本 | 核对结果 / 实际调用面 |
+
+pyinstaller | 直接 | 6.20.0 | 6.22.3 | 上游 High 公告的利用前提不满足，预防升级 |
+
+tkinterdnd2 | 直接 | 0.4.3 | 0.7.0 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+pillow | 直接 | 12.2.0 | 13.0.0 | 见 Pillow 公告附表；无业务图像解码入口 |
+
+altgraph | 间接 | 0.17.5 | 0.17.5 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+packaging | 间接 | 26.0 | 26.3 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+pyinstaller-hooks-contrib | 间接 | 2026.4 | 2026.9 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+setuptools | 间接 | 82.0.1 | 84.2.1 | 2 条公告，构建使用路径不满足利用条件；已升级 |
+
+macholib | 间接 | 1.16.4（旧 Mac 构建日志） | 1.16.4 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+pefile | 间接 | 2024.8.26 | 2024.8.26 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+pywin32-ctypes | 间接 | 0.2.3 | 0.2.3 | 逐包 GitHub Advisory/PyPI 查询及 pip-audit 未发现该锁定版本的已知记录 |
+
+旧 Windows 构建环境与旧 Mac 构建环境并不相同：Mac 日志中 packaging=26.3、pyinstaller-hooks-contrib=2026.9、setuptools=84.2.1；Windows 旧环境分别为 26.0、2026.4、82.0.1。表中的旧值以本地 Windows 实际环境为主，原始证据保留在 evidence/。
+
+pip-audit 初次返回 67 条原始记录，涉及 Pillow 和 setuptools；按 GHSA 去重为 54 条记录（Pillow 52、setuptools 2）。已逐个取得 54 条 GitHub 主站公告详情：5 Critical、32 High、16 Medium、1 Low。这些是公告记录数量，不是可利用应用漏洞数量，也不保证与 CVE 根因一一对应。
+
+Web 人工核对另外发现 PyInstaller 的上游 High 公告 GHSA-9fxf-4qw3-ghmr；机器扫描的零告警不能代替人工核对。其 6.8 起的 onedir 不受该环境变量路径影响，本项目没有使用 onefile 或提权运行。
+
+Pillow 相关 Critical/High 涉及图像、字体、内存布局、图片编码或多帧加载；本项目导入的是纯文本，操作图标由自有标准库渲染器生成。Pillow 只用于构建和开发截图，本次产物未发现 PIL/_imaging 打包项。仍完整升级到 13.0.0，避免构建依赖继续停留在存在公告的版本。
+
+更新后对锁文件的全部 10 个跨平台包再次查询：pip-audit 未报告已知漏洞。命令、工具安装版本和 JSON 原始输出均保留。工具使用 --no-deps 是因为输入已显式列全所有实际锁定依赖，运行的构建环境另有 pip check 交叉核验。
+
+维护状态：tkinterdnd2 的 pmgagne 原始仓库已停止维护，但当前 PyPI 包来自仍维护的 Eliav2 分支，0.7.0 发布于 2026-10-25。pefile 2024.8.26 和 pywin32-ctypes 0.2.3 的最近发行时间均在 2024 年，属于低更新频率依赖，建议持续关注；没有足够证据将它们标为已停止维护。没有发现疑似仿冒包名。
+
+
+
+四、运行时与原生组件
+
+组件 | 版本 | 来源与边界 |
+
+Windows Python | 3.14.10 | 官方 NuGet 运行包；Tk 组件来自经 PSF Authenticode 验证的官方 MSI，只读取数据，未执行安装动作 |
+
+Windows Tcl / Tk | 9.0.4 / 9.0.4 | 实际解释器查询 |
+
+Windows OpenSSL | OpenSSL 3.5.9 29 Sep 2026 | 实际解释器查询；官方公告当前所列 <3.5.9 的修复已包含 |
+
+Windows Expat | expat_2.9.0 | 实际解释器查询 |
+
+Windows zlib 兼容版本 | 1.3.1.zlib-ng | 此字符串不等于 zlib-ng 底层项目版本；精确 zlib-ng 修订待确认 |
+
+Mac Python | 3.14.10 | 官方安装包及公开 SHA-256 固定，构建 inventory 实测 |
+
+Mac Tcl / Tk | 9.0.4 / 9.0.5 | 构建 inventory 实测 |
+
+Mac OpenSSL / Expat | OpenSSL 3.5.9 29 Sep 2026 / expat_2.9.0 | 构建 inventory 实测 |
+
+Mac zlib 兼容版本 | 1.2.12 | 系统库是否回补安全补丁待确认，不能只根据版本字符串判定漏洞；本项目不接收用户压缩包 |
+
+TkDnD | 2.10.3（Tcl 9） | Intel 缺失的预编译库从固定提交构建；vendor/manifest.json 固定 SHA-256，两个架构均已原生验证 |
+
+用户授权选择耗时最少的路线后，采用官方 Python 3.14.10，而非从源码构建 3.12 安全修订。Windows 的项目内临时解释器没有覆盖系统 Python。Mac 的官方安装包 SHA-256 为 286c7018aa2730f6747ca433dccdc2b31be45f078a9ea0ffa44d5f06368fd2d7。
+
+新 Tk 9 所需的 Intel TkDnD 从 Squiblydoo/tkdnd 固定提交 f2b256ecf374595fa20005c479655e9fd72889f8 构建，保留许可证、来源和文件哈希。之后的构建直接验证并使用已固定的 vendor 库；不必每次通过 Homebrew 临时编译。最初编译日志保留了 Tcl/Tk 9.0.4 工具链来源。Apple Silicon 使用 tkinterdnd2 官方轮子内的 Tcl 9 组件。
+
+通用架构不表示支持全部旧版 macOS。新 Python 官方安装器要求 macOS 10.15+，本次实际运行验收为 macOS 15 的 Intel 和 ARM64。原生组件未做完整 C/C++ 内存安全代码审计或模糊测试；zlib-ng 的兼容字符串也不能直接当成底层版本号，Mac 系统 zlib 的补丁回补情况未做二进制核验，列为待确认项。
+
+
+
+五、逐文件代码审查与已修复改动
+
+pt_clip_viewer.py / edl_parser.py：导出文本只作为数据处理，不执行内容。原正则存在可重现回溯放大；已用逐行扫描和固定时间字段查找替代。限制在读取函数内部实施，验证已打开描述符、拒绝非普通文件，最多读取 20 MB+1；UI 捕获 OSError/ValueError。UTF-16 仅在有 BOM 时尝试，避免偶数字节 GBK 被错误解码。
+
+pt_platform.py：设置保存在用户目录，无密码或凭据；允许用户选择本地/网络文件属于功能授权，不应误报为路径穿越。配置保存仅为两个布尔偏好。未发现跨用户读写或权限提升。
+
+ui_widgets.py / aa_graphics.py：只使用固定颜色、随包图标数据和控件尺寸；没有 eval、动态远程脚本或系统命令。抗锯齿图像采用 PNG 数据及标准库 zlib 生成，保留原版 LOGO。没有把导出片段名称当作 Tcl 脚本执行。
+
+ui_validation.py / 应用 smoke 分支：移除可被 -O 优化掉的 assert，改为显式异常；截图调用限定为 Mac 系统绝对路径。发布标记在运行前清除，避免旧结果掩盖新失败。
+
+build_app.py / macos_universal.py / verify_macos_dmg.py：所有子进程参数为数组，无 shell=True；文件内容不拼接到 shell。Mac 系统命令采用绝对路径，所有核心 Mach-O 要求包含两个架构；TkDnD 只对明确的架构目录做例外并检查匹配架构。vendor 库先核对哈希，再复制与签名。
+
+build_windows.ps1 / build_macos.command / run_macos.command / requirements*.lock：固定直接及间接依赖、发行文件哈希，只接受二进制轮子。Windows 安装保持 PrivilegesRequired=lowest，不要求管理员权限、不启用应用提权。
+
+.github/workflows/macos-universal.yml：只有手动 workflow_dispatch，没有 pull_request_target；Action 固定提交、token 只读，构建 checkout 不保留凭据。Python 安装包固定版本与哈希；源码目录由固定条件赋值，没有把 PR 标题、分支文字等不可信上下文直接插入脚本。下载制品检查摘要与路径归属后解压。
+
+tools/audit_secrets.py / tools/runtime_inventory.py：只用于本地审计与版本记录；秘密匹配只输出规则、位置和指纹，不输出值。GitHub 下载辅助脚本仅在内存读取系统 Git Credential Manager，跨域重定向会移除 Authorization，随临时构建目录删除，不进入交付 App。
+
+verify_release.py / verify_security.py / verify_universal.py / hooks-macos：测试覆盖编码、迁移、滚轮、恶意长空白行、字节上限、非普通文件、哈希、优化模式验证门和架构选择。包钩子只调整已固定依赖的打包路径。
+
+不适用项：无 SQL/NoSQL、HTTP 服务、HTML 用户内容渲染、鉴权接口、CORS、浏览器扩展、WebView、IPC RPC、反序列化用户 pickle/yaml、用户压缩包上传或动态远程代码加载。因此没有把这些不存在的接口虚构成发现。
+
+
+
+六、密钥、凭据和日志
+
+扫描覆盖当前项目、旧文件、源码 ZIP、Git 历史 blob、构建产物原始字节及 PyInstaller 中的项目模块，也包含审计日志。清理前完整扫描统计：1299 个文件、104 个历史 blob、60 个 ZIP 成员、7 个打包模块。发现 0 个高可信匹配。清理后复扫另覆盖 357 个文件、119 个历史 blob 和 7 个打包模块，仍为 0 个高可信匹配（原始记录 secrets-after-cleanup.json）。
+
+规则覆盖 GitHub / OpenAI Token、AWS AccessKey、私钥头、Slack Webhook、带密码数据库 URI 和长字面量密码字段。没有发现 .env 或私钥已进入版本控制，也没有发现项目硬编码 API Key。GitHub 凭据由系统凭据管理器读取，未输出明文或保存到源码。
+
+已补充 .env、私钥、P12/PFX 证书等忽略规则。项目没有运行时凭据配置需求，因此不创建无用途的 .env.example。没有发现需要轮换的密钥；若开发者在其他分支、未扫描位置或外部渠道曾泄露密钥，仍需到对应平台撤销，删除代码不能替代轮换。
+
+规则扫描无法证明不存在未知格式、自定义编码或已撤销的历史凭据。未对原生机器码进行全面反编译；第三方依赖的公共测试证书也不等同于项目的私人凭据。
+
+
+
+七、构建与回归验证
+
+依赖：实际安装使用 hash 锁；pip check 无冲突；更新后对全部 10 个跨平台包 pip-audit 为零已知告警。临时 @resvg/resvg-js 制图工具 npm audit 为零告警，该工具及 node_modules 最终删除。
+
+静态工具：Bandit 初次 36 个 Low、0 Medium/High；首次修复复扫 18 个 Low、0 Medium/High。其余主要为必要 subprocess 导入/数组调用和可选 DPI/Tk 兼容性异常处理，人工检查没有不可信输入拼接 shell；工具告警未被当成已证实漏洞。加入可复用审计工具后的最终复扫为 25 个 Low、0 Medium/High；最终工具输出保留在 evidence/。
+
+回归：平台测试 5 项、Universal 2 测试 6 项、安全测试 8 项。Windows 跳过 1 个只适用于 POSIX 的命名管道检查；Mac 会执行它。另有 100 组合成有效文本与 3.9.9 解析结果一致，覆盖 UTF-8、UTF-16、GBK。未取得用户实际工程导出文件，真实大型工程容量仍待确认。
+
+恶意输入：旧版 500 空格测试超过 3 秒被终止；修复后含 100 万空格的畸形行单次约 0.005 秒返回。该值为本机样本测量，不是对任意机器的性能承诺。
+
+Windows：最新安装包完成临时安装、启动、中文导入、剪贴板、python314.dll 检查与卸载；临时改名构建时 Python 目录后，便携包仍能独立启动；实际回收临时构建目录后再次运行 smoke 为 OK（final-clean-smoke.txt）；设置 PYTHONOPTIMIZE=1 运行成功；另在源码 -O 负向测试中注入空解析结果，显式验证门正确报错且未写入成功标记。
+
+Mac：同一 DMG 在 macOS 15 Intel x86_64 与 Apple Silicon arm64 执行架构、签名完整性、原生启动、TkDnD 加载、导入、剪贴板、按钮状态、撤销/回撤及设置窗口检查。已检查导出的 Intel 主界面截图。签名完整性检查只验证当前 ad-hoc 包没有被破坏，不表示它已获 Apple 身份认证或公证。
+
+最终自包含 vendor 构建与运行记录：https://github.com/JaminFX/pt_clip_viewer/actions/runs/42594535876
+
+
+
+八、文件清理与交付
+
+已移至系统回收站（可恢复，未永久销毁）46 个旧文件/目录目标，约 563.7 MB。实际目标、大小和处理结果见清理清单.json。
+
+保留最新版 Windows 安装包、Mac Universal 2 DMG、Mac 说明、哈希，以及当前源码、原始 LOGO、锁文件、固定的原生库和 Git 历史。移除旧版安装器、重复制品 ZIP、根目录旧便携 EXE/_internal、旧源码备份、构建缓存、临时依赖环境与根目录构建日志。
+dist/pt_clip_viewer/：保留当前 Windows 便携版，exe 与其 _internal 必须一起使用。
+
+release/：给最终用户使用的当前安装包、Mac 说明和 SHA256SUMS.txt。
+安全审核/：本报告、漏洞明细 CSV、清理清单、原始证据与截图。
+当前源码与 .git：保留开发和回滚能力；本轮没有清理系统 Python、系统凭据管理器或用户 Application Support/LocalAppData 设置。
+
+
+
+九、需开发者决定的问题与剩余风险
+
+运行时路线已由用户授权自行选择最快方案，本轮已完成，不再保留未决升级请求。
+
+发布者身份认证：目前按用户需要的“系统设置中单独允许打开”方式交付。选项 A：保留当前 ad-hoc / 未签名分发并附校验和；选项 B：由开发者提供 Apple Developer ID 证书与公证授权，及 Windows 发布者签名证书，再接入安全的仓库 Secrets。建议正式对外分发前采用 B；本轮没有相关证书，不能伪造身份或替开发者购买/轮换密钥。
+
+大型有效文件：20 MB 读取上限已落实，恶意空白行回溯已修复，但 GUI 仍同步创建轨道/片段控件。实际最大轨道数、片段数和大型真实工程内存占用待确认。若后续需要超大工程，可选择虚拟列表/分页；不要在不了解业务规模时擅自削减功能或设置更低条数上限。
+
+原生库：TkDnD 与 Tcl/Tk 已核对来源和架构并进行运行验证，尚未做全部 C/C++ 模糊测试。zlib 的兼容版本字符串不能确认底层 zlib-ng 精确修订，建议随 Python 官方安全维护持续更新。无证据时不编造对应 CVE。
+
+持续维护：低更新频率的 pefile、pywin32-ctypes 及固定 Action 提交需要定期复查；固定哈希能防止版本漂移，但不能保证上游从未存在未知漏洞。签名密钥一旦建立，应只保存在系统钥匙串或仓库 Secrets 中，避免进入 Git 和构建日志。
+
+
+
+附录 A：54 条去重 GHSA 公告索引
+
+完整摘要、修复版本和触发面说明见同目录“依赖漏洞明细.csv”；原始机器证据和 GitHub 详情见 evidence/。
+
+GHSA | CVE | 上游级别 | 摘要（截短） | 主站详情 |
+
+GHSA-22hg-r758-rrw9 | CVE-2026-112390 | high | Pillow: Infinite loop in MIC n_frames when the embedded TIFF | https://github.com/advisories/GHSA-22hg-r758-rrw9 |
+
+GHSA-24rc-8hj2-v98c | CVE-2026-96638 | medium | Pillow: BMP RLE decoder memory-amplification DoS via unbounded delta escape / absolute mode | https://github.com/advisories/GHSA-24rc-8hj2-v98c |
+
+GHSA-254f-3936-288h | CVE-2026-112391 | medium | Pillow: PdfParser can recurse without limit in get_value() and linearize_page_tree() | https://github.com/advisories/GHSA-254f-3936-288h |
+
+GHSA-27h8-gf7j-v5hc | CVE-2026-112392 | high | Pillow: NULL dereference in ImagingExpand via rank filters on zero-size images | https://github.com/advisories/GHSA-27h8-gf7j-v5hc |
+
+GHSA-332p-7hrc-92wf | CVE-2026-112393 | critical | Pillow: Heap buffer overflow in _tiffWriteProc when saving TIFF to BytesIO | https://github.com/advisories/GHSA-332p-7hrc-92wf |
+
+GHSA-3j72-p6qg-6xp7 | CVE-2026-96642 | high | Pillow: TarIO negative size field causes infinite CPU-spin loop | https://github.com/advisories/GHSA-3j72-p6qg-6xp7 |
+
+GHSA-4558-3h8r-v8xp | CVE-2026-112394 | medium | Pillow: P;2L and P;4L decoders may read 1 to 3 bytes past the passed buffer size | https://github.com/advisories/GHSA-4558-3h8r-v8xp |
+
+GHSA-45hq-cxwh-f6vc | CVE-2026-55379 | high | Pillow `BdfFontFile`: `Image.new()` called without `_decompression_bomb_check()` — bomb protection bypass via font loading | https://github.com/advisories/GHSA-45hq-cxwh-f6vc |
+
+GHSA-462x-pgg6-55fp | CVE-2026-112395 | medium | Pillow tiled-TIFF decoder reads past tile buffer in copy4 (Unpack.c:1290) | https://github.com/advisories/GHSA-462x-pgg6-55fp |
+
+GHSA-4rm8-3hmm-39fg | CVE-2026-96641 | medium | Pillow: Reachable undefined behavior in native integer operations, potentially leading to denial of service or logic integrity compromise | https://github.com/advisories/GHSA-4rm8-3hmm-39fg |
+
+GHSA-4rr5-89j8-mwwm | CVE-2026-112396 | medium | Pillow: Heap use-after-free when encoding TIFF to an in-memory buffer | https://github.com/advisories/GHSA-4rr5-89j8-mwwm |
+
+GHSA-4x4j-2g7c-83w6 | CVE-2026-55798 | medium | Pillow: WindowsViewer.get_command() OS command injection via unescaped shell path | https://github.com/advisories/GHSA-4x4j-2g7c-83w6 |
+
+GHSA-58r4-6rv3-gfh8 | CVE-2026-112397 | high | Pillow: Out-of-bounds access in _imagingmorph on a zero-width image | https://github.com/advisories/GHSA-58r4-6rv3-gfh8 |
+
+GHSA-5x8w-8jj5-q52h | CVE-2026-112398 | critical | Pillow: Heap buffer overflow in FlashPix (FPX) JPEG decoding leads to code execution | https://github.com/advisories/GHSA-5x8w-8jj5-q52h |
+
+GHSA-5x94-69rx-g8h2 | CVE-2026-54060 | high | Pillow: `FontFile.compile()`: `Image.new()` called without `_decompression_bomb_check()` | https://github.com/advisories/GHSA-5x94-69rx-g8h2 |
+
+GHSA-5xm2-6676-qcp9 | CVE-2026-112399 | high | Pillow: APNG background disposal allocates full canvas before decompression bomb check | https://github.com/advisories/GHSA-5xm2-6676-qcp9 |
+
+GHSA-62p4-gmf7-7g93 | CVE-2026-54058 | high | Pillow: Out-of-bounds read via attacker-controlled row stride on Pillow's mmap path (McIdas AREA files) | https://github.com/advisories/GHSA-62p4-gmf7-7g93 |
+
+GHSA-654x-cwwv-5j9c | CVE-2026-114501 | medium | Pillow: Arrow export leaks stale heap memory when PILLOW_ALIGNMENT > 1 | https://github.com/advisories/GHSA-654x-cwwv-5j9c |
+
+GHSA-65qm-jvmh-6pqg | CVE-2026-112400 | high | Pillow: GIF seek keeps rejected size after DecompressionBombError, allowing DoS | https://github.com/advisories/GHSA-65qm-jvmh-6pqg |
+
+GHSA-6r8x-57c9-28j4 | CVE-2026-59199 | high | Pillow: Heap out-of-bounds write `Image.paste()` / `Image.crop()` via signed coordinate overflow | https://github.com/advisories/GHSA-6r8x-57c9-28j4 |
+
+GHSA-74r2-7ff9-mjj2 | CVE-2026-112401 | medium | Pillow: Quadratic GIF comment concatenation allows DoS in Image.open() | https://github.com/advisories/GHSA-74r2-7ff9-mjj2 |
+
+GHSA-78g4-xqwv-q3g8 | 未列出 | high | Pillow: Bundled libopenjp2 2.5.4 in all wheels since 11.1.0 carries OSV-2025-219 heap-buffer-overflow write reachable from Image.open().load() | https://github.com/advisories/GHSA-78g4-xqwv-q3g8 |
+
+GHSA-7mwm-ghpf-9vrm | CVE-2026-112402 | high | Pillow: Double free in ImagingScaleAffine on calloc failure via Image.transform | https://github.com/advisories/GHSA-7mwm-ghpf-9vrm |
+
+GHSA-8g5g-8vmr-9782 | CVE-2026-112403 | critical | Pillow: Heap buffer overflow in ImagingJpegDecode | https://github.com/advisories/GHSA-8g5g-8vmr-9782 |
+
+GHSA-8v84-f9pq-wr9x | CVE-2026-54059 | high | Pillow `PcfFontFile._load_bitmaps()`: `Image.frombytes()` called without `_decompression_bomb_check()` — bomb protection bypass via PCF font loading | https://github.com/advisories/GHSA-8v84-f9pq-wr9x |
+
+GHSA-9hw9-ch79-4vh6 | CVE-2026-59205 | high | Pillow: Controlled heap out-of-bounds write in Pillow `ImageCmsTransform.apply()` via output mode mismatch | https://github.com/advisories/GHSA-9hw9-ch79-4vh6 |
+
+GHSA-9v9v-9qvf-h2hj | CVE-2026-96644 | high | Pillow: Heap over-read in WMF/EMF rendering via 16-bit dimension truncation (Windows builds) | https://github.com/advisories/GHSA-9v9v-9qvf-h2hj |
+
+GHSA-c6hw-5grf-ff96 | CVE-2026-112404 | high | Pillow: OOB read in TiffDecode.c tile and RGBA paths leaks heap memory into pixels | https://github.com/advisories/GHSA-c6hw-5grf-ff96 |
+
+GHSA-cp9v-662q-vvx9 | CVE-2026-112405 | high | Pillow: NULL pointer dereference in Image.merge via an unvalidated band 0 | https://github.com/advisories/GHSA-cp9v-662q-vvx9 |
+
+GHSA-f2g6-542v-9j58 | CVE-2026-112406 | high | Pillow: Infinite loop in PdfParser.rewrite_pages on page tree Parent cycle | https://github.com/advisories/GHSA-f2g6-542v-9j58 |
+
+GHSA-fc9g-5qg7-mf45 | CVE-2026-112891 | medium | Pillow: Quadratic GIF comment copying during save | https://github.com/advisories/GHSA-fc9g-5qg7-mf45 |
+
+GHSA-fj7v-r99m-22gq | CVE-2026-59198 | medium | Pillow TGA RLE encoder can serialize up to ~57 KB of adjacent heap data into generated images | https://github.com/advisories/GHSA-fj7v-r99m-22gq |
+
+GHSA-g4qv-2jxx-769h | CVE-2026-96643 | high | Pillow: PNG eXIf chunk makes EXIF parsing run in quadratic time | https://github.com/advisories/GHSA-g4qv-2jxx-769h |
+
+GHSA-g7cr-3p24-7wf7 | CVE-2026-96778 | high | Pillow: Heap buffer overflow writing JPEG comment after ICC profile fills buffer | https://github.com/advisories/GHSA-g7cr-3p24-7wf7 |
+
+GHSA-g842-9rc4-69pw | CVE-2026-96637 | high | Pillow: Decompression bomb check bypass in SpiderImagePlugin.seek() leads to unbounded allocation DoS | https://github.com/advisories/GHSA-g842-9rc4-69pw |
+
+GHSA-gg2r-wvfm-q9rx | CVE-2026-112892 | high | Pillow: MSP RLE decoder expands a tiny file into unbounded memory | https://github.com/advisories/GHSA-gg2r-wvfm-q9rx |
+
+GHSA-h35f-9h28-mq5c | CVE-2026-59890 | medium | setuptools: MANIFEST.in exclusion bypass in sdist via Unicode normalization collision (NFC/NFD) on macOS APFS/HFS+ | https://github.com/advisories/GHSA-h35f-9h28-mq5c |
+
+GHSA-j4m9-6w36-pw47 | CVE-2026-112893 | high | Pillow: Invalid free in FreeType glyph rendering when a stroker is active | https://github.com/advisories/GHSA-j4m9-6w36-pw47 |
+
+GHSA-jg86-v3jv-hrpm | CVE-2026-112894 | high | Pillow: Quadratic-time DoS in PDF save_all (PdfParser.next_object_id) | https://github.com/advisories/GHSA-jg86-v3jv-hrpm |
+
+GHSA-jjj6-mw9f-p565 | CVE-2026-59200 | high | Pillow: Decompression Bomb DoS via PdfParser.PdfStream.decode() | https://github.com/advisories/GHSA-jjj6-mw9f-p565 |
+
+GHSA-mrfp-p49p-3hf2 | CVE-2026-96640 | high | Pillow PDF append accepts malformed shared page-tree DAG causing resource exhaustion | https://github.com/advisories/GHSA-mrfp-p49p-3hf2 |
+
+GHSA-p4wg-p73j-c528 | CVE-2026-112895 | high | Pillow: Unbounded recursion parsing a PDF page tree or trailer chain (incomplete fix for CVE-2026-42310) | https://github.com/advisories/GHSA-p4wg-p73j-c528 |
+
+GHSA-p8hx-v2p6-rp84 | CVE-2026-96636 | medium | Pillow: Decompression-bomb protection bypass via multi-frame seek() in MPO and DCX (MpoImageFile.seek / DcxImageFile.seek) | https://github.com/advisories/GHSA-p8hx-v2p6-rp84 |
+
+GHSA-pchr-8j38-3x4p | CVE-2026-112896 | high | Pillow: TIFF encoder ColorMap plane-size mismatch causes a heap out-of-bounds read | https://github.com/advisories/GHSA-pchr-8j38-3x4p |
+
+GHSA-pg7v-jwj7-p798 | CVE-2026-59203 | medium | Pillow EpsImagePlugin negative %%BeginBinary byte count causes infinite loop denial of service | https://github.com/advisories/GHSA-pg7v-jwj7-p798 |
+
+GHSA-phj9-mv4w-65pm | CVE-2026-55380 | high | Pillow `GdImageFile._open()`: image dimensions accepted without `_decompression_bomb_check()` | https://github.com/advisories/GHSA-phj9-mv4w-65pm |
+
+GHSA-q45j-58j2-45rg | CVE-2026-112897 | high | Pillow: TiffDecode returns uninitialized memory as pixels for short JPEG strips | https://github.com/advisories/GHSA-q45j-58j2-45rg |
+
+GHSA-v9pv-5gc8-w2m6 | CVE-2026-96639 | critical | Pillow multi-frame loaders can reuse stale native image storage after mode transitions | https://github.com/advisories/GHSA-v9pv-5gc8-w2m6 |
+
+GHSA-vjc4-5qp5-m44j | CVE-2026-59204 | high | Pillow JPEG2000 tiled decode retains a growing scratch buffer and can be used for denial of service | https://github.com/advisories/GHSA-vjc4-5qp5-m44j |
+
+GHSA-vx6w-vv9f-6gvg | CVE-2026-112899 | medium | Pillow: EPS load(scale) lets Ghostscript render past the decompression bomb limit | https://github.com/advisories/GHSA-vx6w-vv9f-6gvg |
+
+GHSA-w889-685w-c8fh | CVE-2026-112900 | critical | Pillow: Argument Injection in Ghostscript call, potentially leading into RCE | https://github.com/advisories/GHSA-w889-685w-c8fh |
+
+GHSA-xgh8-jp6q-p5x8 | CVE-2026-112901 | medium | Pillow: ReDoS in XbmImagePlugin: 512-byte file stalls Image.open() for minutes | https://github.com/advisories/GHSA-xgh8-jp6q-p5x8 |
+
+GHSA-xj96-63gp-2gmr | CVE-2026-59197 | high | Pillow: Heap out-of-bounds write in `ImageFilter.RankFilter` via integer overflow in `ImagingExpand` | https://github.com/advisories/GHSA-xj96-63gp-2gmr |
+
+GHSA-xmj3-9gf7-h52w | 未列出 | low | setuptools: Windows path escape via namespace_packages.txt during legacy wheel installation Description | https://github.com/advisories/GHSA-xmj3-9gf7-h52w |
+
+
+
+附录 B：主要来源
+
+Python 3.14.10 安全发布与官方安装包哈希
+
+PyInstaller 提权环境变量公告 / onedir 例外
+
+Pillow 多帧存储转换 Critical 公告
+
+Pillow Ghostscript 参数注入公告
+
+setuptools Unicode MANIFEST 公告
+
+tkinterdnd2 官方 PyPI / Tcl 9 Intel 缺失说明
+
+OpenSSL 官方漏洞公告
+
+Apple：安全地打开 App
+
+Apple：程序坞

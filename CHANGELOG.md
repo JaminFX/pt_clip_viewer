@@ -1,3 +1,14 @@
+# 3.9.10
+
+- 修复恶意导出文本长空白行造成的正则回溯拒绝服务。
+- 读取函数内实施 20 MB 字节上限，验证普通文件描述符并处理读取失败。
+- 保持 UTF-8 / UTF-16 / GBK 解析兼容，UTF-16 仅接受带 BOM 的输入。
+- 升级 Python 3.14.10、PyInstaller 6.22.3、tkinterdnd2 0.7.0、Pillow 13.0.0 和固定的间接依赖。
+- 使用 SHA-256 锁文件和固定 Action 提交；加强发布验证门。
+- 固定 Intel Tcl 9 的 TkDnD 组件，并完成 Intel / Apple Silicon 运行验证。
+- 增加 Mac 安装、单独允许打开和固定到 Dock / 应用列表说明。
+- 完成安全审核，并清理旧版本与临时构建环境。
+
 # 3.9.9
 
 - 恢复 3.9.7 使用的原始亮蓝应用 LOGO（Windows ICO、Mac ICNS）。

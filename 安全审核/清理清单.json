@@ -1,0 +1,246 @@
+{
+  "method": "Windows Recycle Bin",
+  "recycled_targets": 46,
+  "recycled_bytes": 591033615,
+  "preserved": [
+    "current source",
+    ".git history",
+    "dist/pt_clip_viewer current portable app",
+    "release current installers and Mac guide",
+    "audit evidence",
+    "user settings outside project",
+    "system Python"
+  ],
+  "entries": [
+    {
+      "path": "build",
+      "bytes": 396236279,
+      "status": "recycled"
+    },
+    {
+      "path": "__pycache__",
+      "bytes": 329000,
+      "status": "recycled"
+    },
+    {
+      "path": "_internal",
+      "bytes": 23928832,
+      "status": "recycled"
+    },
+    {
+      "path": "pt_clip_viewer.exe",
+      "bytes": 1900606,
+      "status": "recycled"
+    },
+    {
+      "path": "pt_clip_viewer_v3_9_6.py",
+      "bytes": 68962,
+      "status": "recycled"
+    },
+    {
+      "path": "smoke-source.txt",
+      "bytes": 4,
+      "status": "recycled"
+    },
+    {
+      "path": "Mac通用版云端打包说明.txt",
+      "bytes": 3179,
+      "status": "recycled"
+    },
+    {
+      "path": "使用与构建说明.txt",
+      "bytes": 3970,
+      "status": "recycled"
+    },
+    {
+      "path": "build-installer-3.9.8.log",
+      "bytes": 158412,
+      "status": "recycled"
+    },
+    {
+      "path": "build-installer-3.9.9.log",
+      "bytes": 158354,
+      "status": "recycled"
+    },
+    {
+      "path": "build-installer.log",
+      "bytes": 155036,
+      "status": "recycled"
+    },
+    {
+      "path": "build-windows-3.9.8.log",
+      "bytes": 6846,
+      "status": "recycled"
+    },
+    {
+      "path": "build-windows-3.9.9.log",
+      "bytes": 6850,
+      "status": "recycled"
+    },
+    {
+      "path": "build-windows.log",
+      "bytes": 6738,
+      "status": "recycled"
+    },
+    {
+      "path": "install-check.log",
+      "bytes": 425208,
+      "status": "recycled"
+    },
+    {
+      "path": "release/3.9.8更新说明.txt",
+      "bytes": 813,
+      "status": "recycled"
+    },
+    {
+      "path": "release/3.9.9更新说明.txt",
+      "bytes": 757,
+      "status": "recycled"
+    },
+    {
+      "path": "release/Mac界面预览.png",
+      "bytes": 223081,
+      "status": "recycled"
+    },
+    {
+      "path": "release/Mac通用版验证结果.txt",
+      "bytes": 976,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.10_Universal2_architectures.json",
+      "bytes": 10010,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.7_macOS_Source.zip",
+      "bytes": 845200,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.7_macOS_Universal2_BuildKit.zip",
+      "bytes": 845200,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.7_macOS_Universal2.dmg",
+      "bytes": 22987803,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.7_Universal2_architectures.json",
+      "bytes": 10272,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_Icon.png",
+      "bytes": 16547,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_Mac_Settings.png",
+      "bytes": 62497,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_Mac_UI.png",
+      "bytes": 126244,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_macOS_Universal2_BuildKit.zip",
+      "bytes": 301328,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_macOS_Universal2.dmg",
+      "bytes": 22541000,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_macOS_VERIFIED.zip",
+      "bytes": 20784309,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_Universal2_architectures.json",
+      "bytes": 10474,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.8_Windows_UI.png",
+      "bytes": 70144,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_Icon.png",
+      "bytes": 61328,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_Mac_UI.png",
+      "bytes": 176755,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_macOS_Universal2_BuildKit.zip",
+      "bytes": 925761,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_macOS_Universal2.dmg",
+      "bytes": 22261737,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_macOS_VERIFIED.zip",
+      "bytes": 21122594,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_Universal2_architectures.json",
+      "bytes": 10474,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_3.9.9_Windows_UI.png",
+      "bytes": 101950,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_macOS_Universal2_VERIFIED.zip",
+      "bytes": 21164116,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_Setup_3.9.7_Windows_x64.exe",
+      "bytes": 10643670,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_Setup_3.9.8_Windows_x64.exe",
+      "bytes": 10578730,
+      "status": "recycled"
+    },
+    {
+      "path": "release/PT_Clip_Viewer_Setup_3.9.9_Windows_x64.exe",
+      "bytes": 10793803,
+      "status": "recycled"
+    },
+    {
+      "path": "release/runtime-inventory-macos.json",
+      "bytes": 463,
+      "status": "recycled"
+    },
+    {
+      "path": "release/runtime-inventory-windows.json",
+      "bytes": 520,
+      "status": "recycled"
+    },
+    {
+      "path": "release/Windows界面预览.png",
+      "bytes": 966783,
+      "status": "recycled"
+    }
+  ]
+}

@@ -1,37 +1,34 @@
-# PT Clip Viewer
+# PT Clip Viewer 3.9.10
 
-<img src="assets/app-icon.png" width="96" alt="PT Clip Viewer app icon" />
+Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应用 LOGO 保持原始亮蓝版本。
 
-当前版本：**3.9.9**。恢复原始亮蓝应用 LOGO；保留 Lucide 操作图标并增加抗锯齿处理，改善勾选和按钮圆角边缘。
-按钮文字使用原生 Label，滚动滑块提高对比度。
+## 使用软件
 
-Pro Tools 导出文本中的片段时间码查看、合并与复制工具。概念：JaminFX。
+- `release/`：当前 Windows 安装包、Mac Universal 2 DMG、Mac 使用说明和校验和。
+- Windows 便携版：`dist/pt_clip_viewer/pt_clip_viewer.exe`，请保留同目录 `_internal`，不要只复制单个 EXE。
+- Mac 安装、在系统设置中允许打开及固定到 Dock / 启动列表：见 [Mac 使用说明](Mac使用说明.html)。
+- 审核结论与残余风险：见 [安全审核报告](安全审核/安全审核报告.html)。
 
-## Windows
+## 构建
 
-运行 `build_windows.ps1` 生成应用及 Inno Setup 安装包。
+需要官方 Python 3.14.10 或更高安全修订版；安装包的最终用户不需要安装 Python。
 
-## macOS Universal 2
+Windows：安装 Inno Setup 6，然后运行 `powershell -ExecutionPolicy Bypass -File .\build_windows.ps1`。
 
-在仓库 Actions 中选择 **Build and test macOS Universal 2**，点击 **Run workflow**。
-构建使用官方 universal2 Python，主程序与 Python/Tk 同时包含 Intel x86_64 和 Apple Silicon arm64。
-TkDnD 以两个独立原生库按进程架构加载。
+Mac：运行 `bash build_macos.command`。默认使用 `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14`。
+主程序与 Python/Tk 以 Universal 2 构建。Intel 的 Tk 9 拖拽库已固定在 `vendor/` 并有哈希清单，原始构建源码提交和许可证一并保留。
 
-工作流会对同一 DMG 在 Intel 与 Apple Silicon 运行器上分别检查架构、签名及启动、中文文件导入和剪贴板。
-所有检查通过后，下载 **PT-Clip-Viewer-macOS-Universal2-VERIFIED** 制品中的 DMG。
-打开 DMG，将应用拖入 Applications。
+依赖安装应使用 `requirements-build.lock` 及 `--require-hashes`，不要只按浮动依赖重新解析。
+也可在 GitHub Actions 手动运行 **Build and test macOS Universal 2**，下载 VERIFIED 制品。
 
-也可在 Mac 上执行 `bash build_macos.command`；需要 python.org 提供的 Python 3.12 universal2。
+## 检查
 
-目前采用 ad-hoc 签名，没有 Developer ID 签名和 Apple 公证。
-具体最低 macOS 版本、拖拽交互和排版仍需在目标机器上验收。
+```text
+python verify_release.py
+python verify_universal.py
+python verify_security.py
+python ui_validation.py build/ui-preview
+```
 
-详细步骤见 [Mac通用版云端打包说明](Mac通用版云端打包说明.txt)。
-
-## 已完成的构建验证
-
-[Universal 2 构建与双架构原生测试](https://github.com/JaminFX/pt_clip_viewer/actions/runs/42587417641) 已全部通过。
-同一 DMG 在 macOS 15 的 Intel x86_64 与 Apple Silicon arm64 环境中完成验证。
-
-
-3.9.9 另外检查按钮启用/禁用、撤销/重做和复制，并导出两种架构的界面截图。
+软件不连接后台服务。Mac 目前仍采用 ad-hoc 签名，尚无 Developer ID 签名或 Apple 公证。
+详细版本记录见 [CHANGELOG](CHANGELOG.md)。
