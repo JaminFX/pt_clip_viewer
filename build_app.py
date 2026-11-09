@@ -7,7 +7,7 @@ from pathlib import Path
 from macos_universal import architectures, audit_bundle, require_universal
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "3.9.10"
+VERSION = "3.9.11"
 
 
 def run(*args):
@@ -47,7 +47,7 @@ def main():
                  "--target-architecture", "universal2",
                  "--additional-hooks-dir", ROOT / "hooks-macos"]
     else:
-        args += ["--collect-all", "tkinterdnd2"]
+        args += ["--collect-all", "tkinterdnd2", "--hidden-import", "PIL.ImageGrab"]
     args += ["--add-data", f"{ROOT / 'assets'}{':' if mac else ';'}assets"]
     args.append(ROOT / "pt_clip_viewer.py")
     if mac and tcl_major >= 9:

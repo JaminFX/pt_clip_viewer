@@ -25,11 +25,11 @@ def legacy_config_path():
     return base / "pt_clip_viewer.ini"
 
 
-def wheel_units(event):
+def wheel_units(event, *, tk9=False):
     """macOS Tk emits small deltas; Windows generally emits multiples of 120."""
     delta = event.delta
     if not delta:
         return 0
-    if IS_MAC:
+    if IS_MAC and not tk9:
         return -int(delta) if abs(delta) >= 1 else (-1 if delta > 0 else 1)
     return -int(delta / 120) if abs(delta) >= 120 else (-1 if delta > 0 else 1)

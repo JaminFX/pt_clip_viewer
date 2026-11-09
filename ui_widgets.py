@@ -98,13 +98,24 @@ class ActionButton(tk.Canvas):
             kw = {**cnf, **kw}
         if not kw:
             return super().configure()
+        changed = set()
         for key in list(kw):
             if key in self.OPTIONS:
-                self._values[key] = kw.pop(key)
+                value = kw.pop(key)
+                if self._values.get(key) != value:
+                    self._values[key] = value
+                    changed.add(key)
         if kw:
             super().configure(**kw)
-        self._font.configure(**tkfont.Font(self, font=self._values["font"]).actual())
-        self._measure()
+        if "font" in changed:
+            self._font.configure(**tkfont.Font(self, font=self._values["font"]).actual())
+        if changed & {"text", "font", "padx", "pady"}:
+            self._measure()
+        elif changed & {"bg", "fg", "state", "cursor"}:
+            if changed & {"state", "cursor"}:
+                super().configure(takefocus=0 if self._values["state"] == "disabled" else 1,
+                                  cursor="arrow" if self._values["state"] == "disabled" else self._values["cursor"])
+            self._paint()
 
     config = configure
 
@@ -159,7 +170,6 @@ class ActionButton(tk.Canvas):
     def _paint(self, event=None):
         if not hasattr(self, "_label"):
             return
-        self.delete("all")
         disabled = self._values["state"] == "disabled"
         fill = "#202c3e" if disabled else self._values["bg"]
         fg = "#91a4bc" if disabled else self._values["fg"]
@@ -168,9 +178,14 @@ class ActionButton(tk.Canvas):
         w = self.winfo_width() if self.winfo_width() > 1 else self.winfo_reqwidth()
         h = self.winfo_height() if self.winfo_height() > 1 else self.winfo_reqheight()
         parent = self.master.cget("bg")
-        super().configure(bg=parent)
         focused = self.focus_get() == self and not disabled
         border = "#7dd3fc" if focused else tint(self, fill, .12)
+        paint_key = (w, h, fill, fg, border, parent, self._label, self._icon, self._icon_size, str(self._font.actual()))
+        if paint_key == getattr(self, "_paint_key", None):
+            return
+        self._paint_key = paint_key
+        self.delete("all")
+        super().configure(bg=parent)
         background_key = ("background", w, h, fill, border, parent)
         if background_key not in self._photos:
             self._photos[background_key] = tk.PhotoImage(master=self,
@@ -191,6 +206,13 @@ class ActionButton(tk.Canvas):
             self._text_label.place(x=round(x), y=round(h/2), anchor="w")
         else:
             self._text_label.place_forget()
+        # Resize/hovers should not retain every old native-resolution bitmap.
+        protected = {background_key}
+        if self._icon:
+            protected.add(icon_key)
+        while len(self._photos) > 24:
+            obsolete = next(key for key in self._photos if key not in protected)
+            del self._photos[obsolete]
 
 
 class VisibleScrollbar(ttk.Scrollbar):

@@ -36,7 +36,7 @@
 import os
 import sys
 import ctypes
-from pt_platform import IS_MAC, UI_FONT, CODE_FONT, MODIFIER, UNDO_HINT, config_path, legacy_config_path, wheel_units
+from pt_platform import IS_MAC, UI_FONT, CODE_FONT, MODIFIER, UNDO_HINT, config_path, legacy_config_path
 
 # 🛡️ 注入1：Windows 高分屏抗锯齿清晰化开启
 try:
@@ -116,6 +116,7 @@ from tkinter import filedialog, ttk, messagebox
 from pathlib import Path
 from edl_parser import parse_edl, MAX_EDL_BYTES
 from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
+from ui_scroll import ScrollRegion
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
 if sys.platform == "win32":
@@ -145,7 +146,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.10"
+APP_VERSION = "v3.9.11"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -294,7 +295,7 @@ def show_about(parent):
     tk.Frame(win, bg=ACCENT, height=4).pack(fill="x")
 
     # 可滚动容器
-    canvas = tk.Canvas(win, bg=BG2, highlightthickness=0)
+    canvas = tk.Canvas(win, bg=BG2, highlightthickness=0, yscrollincrement=16)
     sb = VisibleScrollbar(win, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=sb.set)
     sb.pack(side="right", fill="y")
@@ -309,8 +310,6 @@ def show_about(parent):
         canvas.itemconfig(canvas_win, width=e.width)
     body.bind("<Configure>", _on_body_configure)
     canvas.bind("<Configure>", _on_canvas_configure)
-    canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(wheel_units(e), "units"))
-    body.bind("<MouseWheel>", lambda e: canvas.yview_scroll(wheel_units(e), "units"))
 
     inner = tk.Frame(body, bg=BG2)
     inner.pack(fill="both", expand=True, padx=30, pady=24)
@@ -387,6 +386,8 @@ def show_about(parent):
               relief="flat", font=FONT_UI_BOLD, padx=24, pady=6,
               cursor="hand2").pack(pady=(18, 4))
 
+    win._scroll_region = ScrollRegion(canvas)
+    win._scroll_region.attach(sb)
     win.deiconify()         # 位置/内容都就绪后再显示，避免闪现
     win.grab_set()
 
@@ -394,7 +395,7 @@ def show_about(parent):
 # ── 主应用 ────────────────────────────────────────────────────────────────────
 
 class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
-    def __init__(self, open_dialog=True):
+    def __init__(self, open_dialog=False):
         super().__init__()
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.minsize(960, 600)
@@ -490,7 +491,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         tk.Frame(left, bg=BORDER, height=1).pack(fill="x", padx=8, pady=4)
 
-        self.track_canvas = tk.Canvas(left, bg=BG2, highlightthickness=0)
+        self.track_canvas = tk.Canvas(left, bg=BG2, highlightthickness=0, yscrollincrement=16)
         tsb = VisibleScrollbar(left, orient="vertical", command=self.track_canvas.yview)
         self.track_canvas.configure(yscrollcommand=tsb.set)
         self.track_canvas.pack(side="left", fill="both", expand=True)
@@ -501,11 +502,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.track_list_frame.bind("<Configure>", lambda e: self.track_canvas.configure(scrollregion=self.track_canvas.bbox("all")))
         self.track_canvas.bind("<Configure>", lambda e: self.track_canvas.itemconfig(self._canvas_win, width=e.width))
 
-        def _track_wheel(event):
-            self.track_canvas.yview_scroll(wheel_units(event), "units")
-        self._track_wheel_handler = _track_wheel
-        self.track_canvas.bind("<MouseWheel>", _track_wheel)
-        self.track_list_frame.bind("<MouseWheel>", _track_wheel)
+        self._track_scroll = ScrollRegion(self.track_canvas)
+        self._track_scroll.attach(tsb)
 
         # ── 右侧：片段表格 ──
         right = tk.Frame(body, bg=BG)
@@ -566,6 +564,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.tree.configure(yscrollcommand=clip_sb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         clip_sb.pack(side="right", fill="y")
+        self._clip_scroll = ScrollRegion(self.tree)
+        self._clip_scroll.attach(clip_sb)
 
         prev_wrap = tk.Frame(right, bg=BG)
         prev_wrap.pack(fill="x", pady=(8, 0))
@@ -574,6 +574,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         self.preview = tk.Text(prev_wrap, height=4, bg=BG2, fg="#38bdf8", font=FONT_CODE, relief="flat", state="disabled")
         self.preview.pack(fill="x")
+        self._preview_scroll = ScrollRegion(self.preview)
 
         self._drawer = tk.Frame(self._body, bg=BG2, width=360)
         self._drawer.pack_propagate(False)
@@ -666,14 +667,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self._refresh_track_highlight()
 
         # 让鼠标悬停在任意一行上都能滚动整个轨道列表
-        def _bind_wheel_recursive(widget):
-            try:
-                widget.bind("<MouseWheel>", self._track_wheel_handler)
-            except tk.TclError:
-                pass
-            for child in widget.winfo_children():
-                _bind_wheel_recursive(child)
-        _bind_wheel_recursive(self.track_list_frame)
+        self._track_scroll.attach(self.track_list_frame)
 
     def _draw_checkbox(self, canvas, checked, color):
         draw_checkbox(canvas, checked, color)
@@ -1064,7 +1058,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         scroll_wrap = tk.Frame(drawer, bg=BG2)
         scroll_wrap.pack(fill="both", expand=True)
 
-        self._slot_canvas = tk.Canvas(scroll_wrap, bg=BG2, highlightthickness=0)
+        self._slot_canvas = tk.Canvas(scroll_wrap, bg=BG2, highlightthickness=0, yscrollincrement=16)
         slot_sb = VisibleScrollbar(scroll_wrap, orient="vertical", command=self._slot_canvas.yview)
         self._slot_canvas.configure(yscrollcommand=slot_sb.set)
         slot_sb.pack(side="right", fill="y")
@@ -1076,11 +1070,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self._slots_frame.bind("<Configure>", lambda e: self._slot_canvas.configure(scrollregion=self._slot_canvas.bbox("all")))
         self._slot_canvas.bind("<Configure>", lambda e: self._slot_canvas.itemconfig(self._slot_win, width=e.width))
 
-        def _on_wheel(e):
-            self._slot_canvas.yview_scroll(wheel_units(e), "units")
-        self._wheel_handler = _on_wheel
-        self._slot_canvas.bind("<MouseWheel>", _on_wheel)
-        self._slots_frame.bind("<MouseWheel>", _on_wheel)
+        self._slot_scroll = ScrollRegion(self._slot_canvas)
+        self._slot_scroll.attach(slot_sb)
 
         self._slots = []
         self._slot_widgets = []
@@ -1104,12 +1095,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         self.bind("<Command-Shift-Z>" if IS_MAC else "<Control-y>", self._global_redo)
 
     def _bind_mousewheel(self, widget):
-        try:
-            widget.bind("<MouseWheel>", self._wheel_handler)
-        except tk.TclError:
-            pass
-        for child in widget.winfo_children():
-            self._bind_mousewheel(child)
+        self._slot_scroll.attach(widget)
 
     def _add_slot(self, default_name: str = "", default_enabled: bool = True, scroll_to: str = "bottom"):
         idx = len(self._slots)
@@ -1193,7 +1179,6 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         resize_bar_cv.bind("<Configure>",    _draw_grip_lines)
         resize_bar_cv.bind("<ButtonPress-1>", _drag_start)
         resize_bar_cv.bind("<B1-Motion>",     _drag_move)
-        resize_bar_cv.bind("<MouseWheel>",    self._wheel_handler)
 
         act_row = tk.Frame(inner, bg=BG3)
         act_row.pack(fill="x", pady=(4, 0))

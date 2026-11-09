@@ -27,16 +27,23 @@ def rounded_pixels(width, height, fill, border, parent, radius=5, inset=.5):
     result = bytearray(width*height*4)
     hw, hh = width/2-inset, height/2-inset
     radius = min(radius, hw, hh)
+    # Between the two rounded corners the coverage is constant across a row.
+    # Compute that pixel once and fill the span in C, preserving identical RGBA.
+    start = max(0, math.ceil(inset + radius - .5))
+    stop = min(width, math.floor(width - inset - radius - .5) + 1)
+    def pixel(x, y):
+        qx = abs(x+.5-width/2) - (hw-radius)
+        qy = abs(y+.5-height/2) - (hh-radius)
+        distance = math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - radius
+        outer = max(0, min(1, .5-distance))
+        inner = max(0, min(1, -.5-distance))
+        return bytes([round(parent[i]*(1-outer)+border[i]*(outer-inner)+fill[i]*inner)
+                      for i in range(3)] + [255])
     for y in range(height):
-        for x in range(width):
-            qx = abs(x+.5-width/2) - (hw-radius)
-            qy = abs(y+.5-height/2) - (hh-radius)
-            distance = math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - radius
-            outer = max(0, min(1, .5-distance))
-            inner = max(0, min(1, -.5-distance))
-            offset = (y*width+x)*4
-            result[offset:offset+4] = bytes([round(parent[i]*(1-outer)+border[i]*(outer-inner)+fill[i]*inner)
-                                            for i in range(3)] + [255])
+        row = (b"".join(pixel(x, y) for x in range(start))
+               + (pixel(start, y) * (stop-start) if stop > start else b"")
+               + b"".join(pixel(x, y) for x in range(max(start, stop), width)))
+        result[y*width*4:(y+1)*width*4] = row
     return result
 
 

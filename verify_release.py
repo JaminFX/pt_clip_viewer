@@ -24,6 +24,8 @@ class PlatformRegressionTests(unittest.TestCase):
                                      (False, 60, -1), (True, 0, 0)]:
             with self.subTest(mac=mac, delta=delta), patch.object(pt_platform, "IS_MAC", mac):
                 self.assertEqual(pt_platform.wheel_units(SimpleNamespace(delta=delta)), expected)
+        with patch.object(pt_platform, "IS_MAC", True):
+            self.assertEqual(pt_platform.wheel_units(SimpleNamespace(delta=120), tk9=True), -1)
 
     def test_mac_settings_outside_application(self):
         with patch.object(pt_platform, "IS_MAC", True), patch.object(Path, "home", return_value=Path("/Users/test")):

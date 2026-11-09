@@ -1,4 +1,4 @@
-# PT Clip Viewer 3.9.10
+# PT Clip Viewer 3.9.11
 
 Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应用 LOGO 保持原始亮蓝版本。
 
@@ -27,6 +27,7 @@ Mac：运行 `bash build_macos.command`。默认使用 `/Library/Frameworks/Pyth
 python verify_release.py
 python verify_universal.py
 python verify_security.py
+python verify_scrolling.py
 python ui_validation.py build/ui-preview
 ```
 
