@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# PT Clip Viewer build outputs
+/.venv*/
+/__pycache__/
+/build/
+/dist/
+/release/
+/_internal/
+*.exe
+*.ini
+*.log
+/smoke*.txt

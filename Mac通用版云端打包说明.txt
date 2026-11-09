@@ -1,0 +1,56 @@
+PT Clip Viewer — Intel / Apple Silicon Universal 2
+==================================================
+
+当前状态
+--------
+已准备 Universal 2 构建脚本、二进制架构检查和 GitHub Actions 工作流。
+尚未执行 macOS 构建，没有生成 DMG，也没有完成双架构实机验证。
+Windows 上的测试不等同于 macOS 上的实际运行测试。
+
+没有 Mac 的打包方法
+------------------
+1. 将本构建包解压后的内容放到一个 GitHub 仓库的根目录。
+   建议使用私有仓库；.github/workflows/macos-universal.yml 必须位于仓库根目录下。
+   如果应用放在仓库的 pt_clip_viewer 子目录，请将该工作流移到仓库根目录的 .github/workflows。
+2. 打开 GitHub 仓库的 Actions 页面。
+3. 选择 “Build and test macOS Universal 2”，点击 Run workflow。
+4. 等待 build、两个 native-test 和 verified 作业全部成功。
+5. 在该次运行的 Artifacts 中下载：
+   PT-Clip-Viewer-macOS-Universal2-VERIFIED
+6. 解压后得到：
+   PT_Clip_Viewer_3.9.7_macOS_Universal2.dmg
+   PT_Clip_Viewer_3.9.7_Universal2_architectures.json
+   只有通过双架构原生检查后，才会产生 VERIFIED 制品。
+   candidate 制品只是构建候选版本，不代表两个架构均已运行通过。
+
+工作流使用 GitHub 托管的 Intel 与 Apple Silicon macOS 运行器。
+运行消耗仓库的 Actions 额度，是否收费以你的 GitHub 套餐为准。
+工作流只保存运行制品，不会自动发布 Release。
+
+通用版实现
+----------
+1. 安装 python.org 官方 Python 3.12.10 universal2，并验证安装器 SHA-256。
+2. 明确以 PyInstaller --target-architecture universal2 构建。
+3. 主程序、Python、Tk 和扩展模块均要求包含 x86_64 与 arm64。
+4. TkDnD 原生库放在两个独立目录中，由现有加载逻辑按进程架构选择：
+   tkinterdnd2/tkdnd/osx-x64
+   tkinterdnd2/tkdnd/osx-arm64
+   两套库的版本不同，不对它们强行执行 lipo 合并。
+5. 附带的架构检查会拒绝缺失任一 TkDnD 库或存在单架构核心文件的包。
+6. 对相同 DMG 分别在 Intel 和 Apple Silicon 运行器上挂载、检查签名、
+   以原生架构启动，检查 Tk/TkDnD、中文文件导入及剪贴板。
+
+如果有 Mac，可以运行 build_macos.command；必须使用 universal2 Python。
+该脚本生成同一通用 DMG，但本机只能验证当前运行架构。
+程序最低支持哪个 macOS 版本，需要另在目标系统上验收；“通用架构”不代表支持所有 macOS。
+
+签名
+----
+当前采用 ad-hoc 本地签名，没有 Developer ID 和 Apple 公证。
+这是独立于 Universal 2 架构支持的另一项发布工作。
+
+参考
+----
+https://www.pyinstaller.org/en/stable/feature-notes.html
+https://www.python.org/downloads/release/python-31210/
+https://docs.github.com/en/actions/reference/runners/github-hosted-runners

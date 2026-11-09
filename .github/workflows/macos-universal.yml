@@ -1,0 +1,91 @@
+name: Build and test macOS Universal 2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate application sources
+        shell: bash
+        run: |
+          if [[ -f build_app.py ]]; then
+            echo "APP_DIR=." >> "$GITHUB_ENV"
+          elif [[ -f pt_clip_viewer/build_app.py ]]; then
+            echo "APP_DIR=pt_clip_viewer" >> "$GITHUB_ENV"
+          else
+            echo "Cannot locate pt_clip_viewer sources" >&2
+            exit 1
+          fi
+      - name: Install official universal2 Python
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg -o "$RUNNER_TEMP/python.pkg"
+          echo "8373e58da4ea146b3eb1c1f9834f19a319440b6b679b06050b1f9ee3237aa8e4  $RUNNER_TEMP/python.pkg" | shasum -a 256 -c -
+          sudo installer -pkg "$RUNNER_TEMP/python.pkg" -target /
+      - name: Build Universal 2 app and DMG
+        shell: bash
+        run: |
+          cd "$APP_DIR"
+          PYTHON=/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12
+          "$PYTHON" -m venv .venv-macos
+          .venv-macos/bin/python -m pip install -r requirements-build.txt
+          .venv-macos/bin/python verify_release.py
+          .venv-macos/bin/python verify_universal.py
+          .venv-macos/bin/python build_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-Universal2-candidate
+          path: |
+            ${{ env.APP_DIR }}/release/*_macOS_Universal2.dmg
+            ${{ env.APP_DIR }}/release/*_Universal2_architectures.json
+          if-no-files-found: error
+          retention-days: 14
+
+  native-test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: macOS-Universal2-candidate
+          path: candidate
+      - name: Verify the SAME DMG on the native architecture
+        shell: bash
+        run: |
+          if [[ -f verify_macos_dmg.py ]]; then
+            CHECK=verify_macos_dmg.py
+          else
+            CHECK=pt_clip_viewer/verify_macos_dmg.py
+          fi
+          python "$CHECK" candidate/*_macOS_Universal2.dmg
+
+  verified:
+    needs: [build, native-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macOS-Universal2-candidate
+          path: verified
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PT-Clip-Viewer-macOS-Universal2-VERIFIED
+          path: verified/*
+          if-no-files-found: error
+          retention-days: 14
