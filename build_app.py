@@ -7,7 +7,7 @@ from pathlib import Path
 from macos_universal import architectures, audit_bundle, require_universal
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "3.9.11"
+VERSION = "3.9.12"
 
 
 def run(*args):

@@ -47,6 +47,8 @@ def run_visual_checks(App, output):
         app.geometry(f"{width}x{height}+20+30")
         from verify_scrolling import run_scroll_checks
         run_scroll_checks(app)
+        from verify_duplicates import run_duplicate_checks
+        run_duplicate_checks(app)
         with tempfile.TemporaryDirectory() as tmp:
             sample = Path(tmp) / "Lucide_UI_Demo.txt"
             lines = []

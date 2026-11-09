@@ -117,6 +117,7 @@ from pathlib import Path
 from edl_parser import parse_edl, MAX_EDL_BYTES
 from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
 from ui_scroll import ScrollRegion
+from clip_duplicates import unique_lines, new_lines as filter_new_lines
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
 if sys.platform == "win32":
@@ -146,7 +147,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.11"
+APP_VERSION = "v3.9.12"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -761,16 +762,19 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
     # ── 复制 ─────────────────────────────────────────────────────────────────
 
-    def _clips_to_text(self, clips_list: list) -> str:
-        seen  = set()
-        items = []
-        for c in clips_list:
-            key = (c["start"], c["end"])
-            if key not in seen:
-                seen.add(key)
-                items.append(key)
+    def _clips_to_text(self, clips_list: list, context="复制所选轨道") -> str:
+        items = [(c["start"], c["end"]) for c in clips_list]
         items.sort()
-        return "\n".join(f"{smpte_compact(s)}-{smpte_compact(e)}" for s, e in items)
+        lines, duplicates = unique_lines(f"{smpte_compact(s)}-{smpte_compact(e)}" for s, e in items)
+        self._notify_duplicates(duplicates, context)
+        return "\n".join(lines)
+
+    def _notify_duplicates(self, count, context):
+        if count:
+            messagebox.showinfo("检测到重复片段",
+                                f"{context}\n\n已排除 {count} 条重复时间段。\n"
+                                "相同时间段，或已被分组现有时间段完整覆盖的片段，不会重复添加或复制。",
+                                parent=self)
 
     # ── 智能合并 ─────────────────────────────────────────────────────────────
 
@@ -1007,7 +1011,10 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             return
         clips = self.tracks[self.view_idx]["clips"]
         lines = [f"{smpte_compact(c['start'])}-{smpte_compact(c['end'])}" for c in clips]
+        lines, duplicates = unique_lines(lines)
         lines = self._maybe_merge_lines(lines, self._bridge_ranges(self.view_idx))
+        lines, merged_duplicates = unique_lines(lines)
+        self._notify_duplicates(duplicates + merged_duplicates, "复制当前轨道")
         text  = "\n".join(lines)
         self._set_preview(text)
         self._do_copy(text, self.copy_single_btn, "📋 复制当前轨道", "#087ea4")
@@ -1028,7 +1035,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         all_clips = []
         for t in self.tracks:
             all_clips.extend(t["clips"])
-        text = self._clips_to_text(all_clips)
+        text = self._clips_to_text(all_clips, "复制全部轨道")
         self._set_preview(text)
         self._do_copy(text, self.copy_all_btn, "📋 合并全部", "#0d9488")
 
@@ -1310,32 +1317,25 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             messagebox.showinfo("提示", "请先在左侧点击选择一条轨道", parent=self)
             return
         clips = self.tracks[self.view_idx]["clips"]
-        new_lines = []
-        for c in clips:
-            line = f"{smpte_compact(c['start'])}-{smpte_compact(c['end'])}"
-            if line not in data["clips"]:
-                new_lines.append(line)
-        if not new_lines:
-            self._set_status("⚠  所有片段已在该分组中，无需重复添加")
-            return
+        existing, duplicates = unique_lines(data["clips"])
+        incoming = [f"{smpte_compact(c['start'])}-{smpte_compact(c['end'])}" for c in clips]
+        new_lines, skipped = filter_new_lines(existing, incoming)
+        duplicates += skipped
         # 将已有片段 + 新片段合并后做智能合并检测
-        combined = list(data["clips"]) + new_lines
-        merged   = self._maybe_merge_lines(combined, self._bridge_ranges(self.view_idx))
-        if merged == combined:
-            # 无合并，只追加新行
+        combined = existing + new_lines
+        merged = self._maybe_merge_lines(combined, self._bridge_ranges(self.view_idx)) if new_lines else existing
+        merged, merged_duplicates = unique_lines(merged)
+        duplicates += merged_duplicates
+        if merged != data["clips"]:
             self._slot_snapshot(data)
-            for line in new_lines:
-                data["clips"].append(line)
-                listbox.insert("end", line)
+            self._slot_restore(data, listbox, merged)
+        label = data['label'].get() or '(未命名)'
+        self._notify_duplicates(duplicates, f"分组「{label}」")
+        if new_lines:
+            self._slot_set_enabled(data)      # 填充内容后自动勾选该分组
+            self._set_status(f"✅  已添加 {len(new_lines)} 条片段到分组「{label}」；已排除 {duplicates} 条重复项")
         else:
-            # 有合并，整体替换
-            self._slot_snapshot(data)
-            data["clips"] = merged
-            listbox.delete(0, "end")
-            for line in data["clips"]:
-                listbox.insert("end", line)
-        self._slot_set_enabled(data)      # 填充内容后自动勾选该分组
-        self._set_status(f"✅  已添加 {len(new_lines)} 条片段到分组「{data['label'].get() or '(未命名)'}」")
+            self._set_status(f"⚠  没有新片段可添加；已排除 {duplicates} 条重复项")
         self._refresh_slot_action_btns(data)
 
     def _slot_set_enabled(self, data):
@@ -1371,12 +1371,15 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
     def _edit_copy_all(self):
         parts = []
         skipped = 0
+        duplicates = 0
         for slot in self._slots:
             if not slot["enabled"].get():
                 skipped += 1
                 continue
             label = slot["label"].get().strip()
-            clips = slot["clips"]
+            # Deduplicate inside each group; preserve distinct group ownership.
+            clips, count = unique_lines(slot["clips"])
+            duplicates += count
             if not label and not clips:
                 continue
             if label:
@@ -1391,6 +1394,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             return
 
         text = "\n".join(parts)
+        self._notify_duplicates(duplicates, "复制勾选分组（各分组内去重）")
         self.clipboard_clear()
         self.clipboard_append(text)
         self._edit_copy_btn.config(text="✅  已复制！", bg="#16a34a", fg="white")

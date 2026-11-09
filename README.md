@@ -1,4 +1,4 @@
-# PT Clip Viewer 3.9.11
+# PT Clip Viewer 3.9.12
 
 Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应用 LOGO 保持原始亮蓝版本。
 
@@ -28,6 +28,7 @@ python verify_release.py
 python verify_universal.py
 python verify_security.py
 python verify_scrolling.py
+python verify_duplicates.py
 python ui_validation.py build/ui-preview
 ```
 

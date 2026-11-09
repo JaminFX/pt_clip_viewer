@@ -70,7 +70,7 @@ def main():
     if args.pyinstaller:
         from PyInstaller.archive.readers import CArchiveReader
         reader = CArchiveReader(str(args.pyinstaller))
-        names = ("pt_clip_viewer", "edl_parser", "ui_widgets", "aa_graphics", "pt_platform", "ui_validation", "ui_scroll", "verify_scrolling")
+        names = ("pt_clip_viewer", "edl_parser", "ui_widgets", "aa_graphics", "pt_platform", "ui_validation", "ui_scroll", "verify_scrolling", "clip_duplicates", "verify_duplicates")
         for name in names:
             if name in reader.toc:
                 scan("bundled:"+name, reader.extract(name))

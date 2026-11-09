@@ -1,5 +1,5 @@
 #define MyAppName "PT Clip Viewer"
-#define MyAppVersion "3.9.11"
+#define MyAppVersion "3.9.12"
 #define MyAppExeName "pt_clip_viewer.exe"
 
 [Setup]
@@ -21,7 +21,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 SetupLogging=yes
-VersionInfoVersion=3.9.11.0
+VersionInfoVersion=3.9.12.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
