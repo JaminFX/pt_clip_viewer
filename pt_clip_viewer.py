@@ -114,6 +114,7 @@ import tkinter as tk
 import configparser
 from tkinter import filedialog, ttk, messagebox
 from pathlib import Path
+from edl_parser import parse_edl, MAX_EDL_BYTES
 from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
@@ -144,7 +145,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.9"
+APP_VERSION = "v3.9.10"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -174,9 +175,6 @@ TRACK_COLORS = [
     "#38bdf8", "#34d399", "#f59e0b", "#f472b6",
     "#818cf8", "#a3e635", "#fb923c", "#e879f9",
 ]
-
-# 安全：Pro Tools 文本导出通常不到几 MB，超过此上限直接拒绝，避免被超大文件拖垮内存
-MAX_EDL_BYTES = 20 * 1024 * 1024
 
 class GapFill:
     """
@@ -208,59 +206,6 @@ class GapFill:
 
 
 # ── 解析 ─────────────────────────────────────────────────────────────────────
-
-def parse_edl(filepath: str) -> list:
-    for enc in ("utf-8-sig", "utf-16", "gbk", "latin-1"):
-        try:
-            with open(filepath, encoding=enc) as f:
-                text = f.read()
-            break
-        except (UnicodeDecodeError, UnicodeError):
-            continue
-    else:
-        return []
-
-    TRACK_HEADER = r"(?=TRACK NAME:|轨道名[：:])"
-    TRACK_RE     = re.compile(r"(?:TRACK NAME:|轨道名[：:])\s*(.+)")
-
-    blocks   = re.split(TRACK_HEADER, text)
-    time_pat = r"\d{2}:\d{2}:\d{2}:\d{2}"
-    # 安全：行内分隔符只允许空格/制表符（[ \t]），不能用 \s——\s 会匹配换行，
-    # 遇到精心构造的文件时正则会出现灾难性回溯，导致程序卡死数分钟以上
-    row_pat  = re.compile(
-        r"^(\d+)[ \t]+(\d+)[ \t]+(.+?)[ \t]{2,}"
-        r"[ \t]*(" + time_pat + r")"
-        r"[ \t]+(" + time_pat + r")"
-        r"[ \t]+(" + time_pat + r")",
-        re.MULTILINE
-    )
-
-    tracks = []
-    for block in blocks:
-        m = TRACK_RE.search(block)
-        if not m:
-            continue
-        track_name  = m.group(1).strip()
-        clips       = []
-        seen_events = set()
-        for rm in row_pat.finditer(block):
-            if rm.group(1) != "1":
-                continue
-            ev = rm.group(2)
-            if ev in seen_events:
-                continue
-            seen_events.add(ev)
-            clips.append({
-                "event":    ev,
-                "name":     rm.group(3).strip(),
-                "start":    rm.group(4),
-                "end":      rm.group(5),
-                "duration": rm.group(6),
-            })
-        if clips:
-            tracks.append({"track_name": track_name, "clips": clips})
-    return tracks
-
 
 def smpte_compact(tc: str) -> str:
     return tc
@@ -659,16 +604,13 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
     def _load_path(self, path: str):
         try:
-            if not os.path.isfile(path):
-                self._set_status("❌ 所选路径不是文件")
-                return
-            if os.path.getsize(path) > MAX_EDL_BYTES:
-                self._set_status(f"❌ 文件过大（超过 {MAX_EDL_BYTES // 1024 // 1024} MB），已拒绝读取")
-                return
-        except OSError:
-            self._set_status("❌ 无法读取该文件")
+            tracks = parse_edl(path)
+        except ValueError as error:
+            self._set_status(f"❌ {error}")
             return
-        tracks = parse_edl(path)
+        except OSError:
+            self._set_status("❌ 无法读取文件，请确认文件仍存在并且有读取权限")
+            return
         if not tracks:
             self._set_status("❌ 未解析到任何轨道，请检查文件格式")
             return
@@ -1514,12 +1456,15 @@ if __name__ == "__main__":
                 sample.write_text("TRACK NAME: Reading 测试\n1 1 片段一  00:00:01:00 00:00:02:00 00:00:01:00\n", encoding="utf-8")
                 app._load_path(str(sample))
                 app.update()
-                assert len(app.tracks) == 1
-                assert app.tracks[0]["track_name"] == "Reading 测试"
+                if not (len(app.tracks) == 1):
+                    raise RuntimeError('Release validation failed')
+                if not (app.tracks[0]["track_name"] == "Reading 测试"):
+                    raise RuntimeError('Release validation failed')
                 app.clipboard_clear()
                 app.clipboard_append("PT Clip Viewer 测试")
                 app.update()
-                assert app.clipboard_get() == "PT Clip Viewer 测试"
+                if not (app.clipboard_get() == "PT Clip Viewer 测试"):
+                    raise RuntimeError('Release validation failed')
                 Path(sys.argv[2]).write_text("OK\n", encoding="utf-8")
         finally:
             app.destroy()

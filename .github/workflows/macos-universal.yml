@@ -11,7 +11,9 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Locate application sources
         shell: bash
         run: |
@@ -26,26 +28,34 @@ jobs:
       - name: Install official universal2 Python
         shell: bash
         run: |
-          curl --fail --location --retry 3 https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg -o "$RUNNER_TEMP/python.pkg"
-          echo "8373e58da4ea146b3eb1c1f9834f19a319440b6b679b06050b1f9ee3237aa8e4  $RUNNER_TEMP/python.pkg" | shasum -a 256 -c -
+          curl --fail --location --retry 3 https://www.python.org/ftp/python/3.14.10/python-3.14.10-macos11.pkg -o "$RUNNER_TEMP/python.pkg"
+          echo "286c7018aa2730f6747ca433dccdc2b31be45f078a9ea0ffa44d5f06368fd2d7  $RUNNER_TEMP/python.pkg" | shasum -a 256 -c -
           sudo installer -pkg "$RUNNER_TEMP/python.pkg" -target /
       - name: Build Universal 2 app and DMG
         shell: bash
         run: |
           cd "$APP_DIR"
-          PYTHON=/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12
+          PYTHON=/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14
           "$PYTHON" -m venv .venv-macos
-          .venv-macos/bin/python -m pip install -r requirements-build.txt
+          .venv-macos/bin/python -m pip install --require-hashes -r requirements-build.lock
           .venv-macos/bin/python verify_release.py
           .venv-macos/bin/python verify_universal.py
+          .venv-macos/bin/python verify_security.py
           .venv-macos/bin/python build_app.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macOS-Universal2-candidate
           path: |
             ${{ env.APP_DIR }}/release/*_macOS_Universal2.dmg
             ${{ env.APP_DIR }}/release/*_Universal2_architectures.json
           if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: TkDnD9-Intel-source-build
+          path: ${{ env.APP_DIR }}/build/tkdnd-vendor/*
+          if-no-files-found: warn
           retention-days: 14
 
   native-test:
@@ -57,11 +67,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v4
+          python-version: '3.14.10'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: macOS-Universal2-candidate
           path: candidate
@@ -74,7 +84,7 @@ jobs:
             CHECK=pt_clip_viewer/verify_macos_dmg.py
           fi
           python "$CHECK" candidate/*_macOS_Universal2.dmg ui-preview
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: UI-preview-${{ matrix.runner }}
@@ -86,11 +96,11 @@ jobs:
     needs: [build, native-test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: macOS-Universal2-candidate
           path: verified
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: PT-Clip-Viewer-macOS-Universal2-VERIFIED
           path: verified/*

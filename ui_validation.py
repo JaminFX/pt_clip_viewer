@@ -27,7 +27,7 @@ def capture(widget, path):
     bbox = (widget.winfo_rootx(), widget.winfo_rooty(), widget.winfo_width(), widget.winfo_height())
     if sys.platform == "darwin":
         region = ",".join(str(value) for value in bbox)
-        subprocess.run(["screencapture", "-x", "-R"+region, str(path)], check=True, timeout=15)
+        subprocess.run(["/usr/sbin/screencapture", "-x", "-R"+region, str(path)], check=True, timeout=15)
     elif sys.platform == "win32":
         grab = importlib.import_module("PIL.ImageGrab").grab
         x, y, w, h = bbox
@@ -61,37 +61,50 @@ def run_visual_checks(App, output):
             app._slot_add_current(slot["data"], slot["listbox"])
             app.update()
             buttons = [w for w in descendants(app) if isinstance(w, ActionButton)]
-            assert len(buttons) >= 20
-            assert all(w._text_label.winfo_class() == "Label" for w in buttons)
-            assert all(w._check_photo.width() == 18 for w in descendants(app) if hasattr(w, "_check_photo"))
-            assert not [w for w in descendants(app) if w.winfo_class() == "Button"]
-            assert slot["undo_btn"].cget("state") == "normal"
-            assert slot["redo_btn"].cget("state") == "disabled"
+            if not (len(buttons) >= 20):
+                raise RuntimeError('Release validation failed')
+            if not (all(w._text_label.winfo_class() == "Label" for w in buttons)):
+                raise RuntimeError('Release validation failed')
+            if not (all(w._check_photo.width() == 18 for w in descendants(app) if hasattr(w, "_check_photo"))):
+                raise RuntimeError('Release validation failed')
+            if not (not [w for w in descendants(app) if w.winfo_class() == "Button"]):
+                raise RuntimeError('Release validation failed')
+            if not (slot["undo_btn"].cget("state") == "normal"):
+                raise RuntimeError('Release validation failed')
+            if not (slot["redo_btn"].cget("state") == "disabled"):
+                raise RuntimeError('Release validation failed')
             count = len(slot["data"]["clips"])
             slot["undo_btn"].invoke()
-            assert slot["data"]["clips"] == []
+            if not (slot["data"]["clips"] == []):
+                raise RuntimeError('Release validation failed')
             slot["redo_btn"].invoke()
-            assert len(slot["data"]["clips"]) == count
+            if not (len(slot["data"]["clips"]) == count):
+                raise RuntimeError('Release validation failed')
             triggered = []
             original = slot["redo_btn"].cget("command")
             slot["redo_btn"].config(command=lambda: triggered.append(1))
             slot["redo_btn"].invoke()
-            assert not triggered, "Disabled button invoked a command"
+            if not (not triggered):
+                raise RuntimeError("Disabled button invoked a command")
             slot["redo_btn"]._text_label.event_generate("<ButtonPress-1>", x=2, y=2)
             slot["redo_btn"]._text_label.event_generate("<ButtonRelease-1>", x=2, y=2)
-            assert not triggered, "Disabled label invoked a command"
+            if not (not triggered):
+                raise RuntimeError("Disabled label invoked a command")
             slot["redo_btn"].config(command=original)
             app.copy_single_btn._text_label.event_generate("<ButtonPress-1>", x=2, y=2)
             app.copy_single_btn.event_generate("<Leave>", x=4, y=4)
             app.copy_single_btn._text_label.event_generate("<ButtonRelease-1>", x=2, y=2)
-            assert "00:00:03:00-00:00:04:12" in app.clipboard_get()
-            assert app.copy_single_btn._icon == "check"
+            if not ("00:00:03:00-00:00:04:12" in app.clipboard_get()):
+                raise RuntimeError('Release validation failed')
+            if not (app.copy_single_btn._icon == "check"):
+                raise RuntimeError('Release validation failed')
             app.copy_single_btn.focus_set()
             capture(app, output / "main.png")
             app._show_settings()
             app.update()
             dialogs = [w for w in app.winfo_children() if w.winfo_class() == "Toplevel"]
-            assert dialogs
+            if not (dialogs):
+                raise RuntimeError('Release validation failed')
             capture(dialogs[-1], output / "settings.png")
             dialogs[-1].destroy()
             print("PASS: rendered dark buttons; enabled/disabled commands, undo/redo, copy and dialogs.")

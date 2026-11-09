@@ -2,11 +2,12 @@
 import shutil
 import subprocess
 import sys
+import json
 from pathlib import Path
 from macos_universal import architectures, audit_bundle, require_universal
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "3.9.9"
+VERSION = "3.9.10"
 
 
 def run(*args):
@@ -24,12 +25,15 @@ def main():
         for tool in ("codesign", "hdiutil", "ditto"):
             if not shutil.which(tool):
                 raise SystemExit(f"macOS build tool is missing: {tool}")
+    if sys.version_info < (3, 14, 10):
+        raise SystemExit("Build with Python 3.14.10 or a newer security revision.")
     import tkinter
     probe = tkinter.Tk()
     probe.withdraw()
     if sys.platform == "darwin" and probe.tk.call("tk", "windowingsystem") != "aqua":
         probe.destroy()
         raise SystemExit("Use a macOS Python with native Aqua Tk (python.org installer recommended).")
+    tcl_major = int(probe.tk.call("info", "tclversion").split(".")[0])
     probe.destroy()
     name = "PT Clip Viewer" if mac else "pt_clip_viewer"
     args = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
@@ -46,6 +50,12 @@ def main():
         args += ["--collect-all", "tkinterdnd2"]
     args += ["--add-data", f"{ROOT / 'assets'}{':' if mac else ';'}assets"]
     args.append(ROOT / "pt_clip_viewer.py")
+    if mac and tcl_major >= 9:
+        import tkinterdnd2
+        missing = Path(tkinterdnd2.__file__).parent / "tkdnd" / "osx-x64-tcl9"
+        vendor = ROOT / "vendor" / "tkdnd" / "osx-x64-tcl9"
+        if not missing.exists() and not vendor.exists():
+            run("/bin/bash", ROOT / "tools" / "prepare-tkdnd-macos.sh")
     run(*args)
     if not mac:
         print(f"Built: {ROOT / 'dist' / name}")
@@ -56,7 +66,20 @@ def main():
     import tkinterdnd2
     dnd_source = Path(tkinterdnd2.__file__).parent / "tkdnd"
     for directory, arch in (("osx-arm64", "arm64"), ("osx-x64", "x86_64")):
+        suffix = "-tcl9" if tcl_major >= 9 else ""
+        directory += suffix
         source = dnd_source / directory
+        if not source.exists():
+            vendor = ROOT / "vendor" / "tkdnd" / directory
+            if vendor.is_dir():
+                manifest = json.loads((ROOT / "vendor" / "manifest.json").read_text(encoding="utf-8"))
+                import hashlib
+                for file in vendor.iterdir():
+                    if hashlib.sha256(file.read_bytes()).hexdigest() != manifest["files"].get(file.name):
+                        raise SystemExit("Vendored TkDnD checksum mismatch")
+                shutil.copytree(vendor, source)
+            elif directory == "osx-x64-tcl9":
+                run("/bin/bash", ROOT / "tools" / "prepare-tkdnd-macos.sh")
         libraries = list(source.glob("*.dylib"))
         if not libraries or not (source / "pkgIndex.tcl").is_file():
             raise SystemExit(f"Incomplete TkDnD runtime: {source}")
@@ -69,7 +92,7 @@ def main():
             if file.suffix in (".tcl", ".dylib"):
                 shutil.copy2(file, destination / file.name)
         for library in destination.glob("*.dylib"):
-            run("codesign", "--force", "--sign", "-", library)
+            run("/usr/bin/codesign", "--force", "--sign", "-", library)
     output = ROOT / "release"
     output.mkdir(exist_ok=True)
     audit_bundle(app, output / f"PT_Clip_Viewer_{VERSION}_Universal2_architectures.json")
@@ -82,10 +105,11 @@ def main():
                  NSHighResolutionCapable=True)
     with plist_path.open("wb") as f:
         plistlib.dump(plist, f)
-    run("codesign", "--force", "--deep", "--sign", "-", app)
-    run("codesign", "--verify", "--deep", "--strict", app)
+    run("/usr/bin/codesign", "--force", "--deep", "--sign", "-", app)
+    run("/usr/bin/codesign", "--verify", "--deep", "--strict", app)
     # Check the bundled Tk and TkDnD libraries before packaging the app.
     smoke = ROOT / "build" / "smoke.txt"
+    smoke.unlink(missing_ok=True)
     # Native architecture is tested here. Cloud workflow tests the SAME DMG
     # on both Intel and Apple Silicon; an Intel host cannot execute arm64.
     run(app / "Contents" / "MacOS" / name, "--smoke-test", smoke)
@@ -94,11 +118,13 @@ def main():
     import tempfile
     with tempfile.TemporaryDirectory(prefix="ptclip-dmg-") as tmp:
         stage = Path(tmp)
-        run("ditto", app, stage / app.name)
+        run("/usr/bin/ditto", app, stage / app.name)
         (stage / "Applications").symlink_to("/Applications")
+        shutil.copy2(ROOT / "Mac使用说明.html", stage / "Mac使用说明.html")
+        shutil.copy2(ROOT / "Mac使用说明.txt", stage / "Mac使用说明.txt")
         dmg = output / f"PT_Clip_Viewer_{VERSION}_macOS_Universal2.dmg"
         # hdiutil refuses an existing destination unless explicitly overwritten.
-        run("hdiutil", "create", "-ov", "-volname", "PT Clip Viewer",
+        run("/usr/bin/hdiutil", "create", "-ov", "-volname", "PT Clip Viewer",
             "-srcfolder", stage, "-format", "UDZO", dmg)
     print(f"Built: {dmg}")
 

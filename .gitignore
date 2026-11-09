@@ -230,3 +230,24 @@ __marimo__/
 *.ini
 *.log
 /smoke*.txt
+
+# Local audit evidence and credentials
+/.venv*/
+/__pycache__/
+/build/
+/dist/
+/release/
+/_internal/
+*.exe
+*.ini
+*.log
+/smoke*.txt
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+/安全审核/evidence/

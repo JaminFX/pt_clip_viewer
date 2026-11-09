@@ -48,7 +48,7 @@ def audit_bundle(app, report_path=None):
     """Require fat core binaries and both separately dispatched TkDnD libraries."""
     app = Path(app)
     records = []
-    dnd_found = set()
+    dnd_found = {"tcl8": set(), "tcl9": set()}
     for path in sorted(app.rglob("*")):
         if path.is_symlink() or not path.is_file():
             continue
@@ -57,20 +57,21 @@ def audit_bundle(app, report_path=None):
             continue
         rel = path.relative_to(app).as_posix()
         expected = None
-        for directory, arch in (("osx-arm64", "arm64"), ("osx-x64", "x86_64")):
+        for directory, arch in (("osx-arm64", "arm64"), ("osx-x64", "x86_64"), ("osx-arm64-tcl9", "arm64"), ("osx-x64-tcl9", "x86_64")):
             prefix = f"Contents/Frameworks/tkinterdnd2/tkdnd/{directory}/"
             if rel.startswith(prefix) and path.suffix == ".dylib" and path.name.startswith("libtkdnd"):
                 expected = arch
                 if arch not in found:
                     raise RuntimeError(f"Wrong TkDnD architecture: {rel}: {sorted(found)}")
-                dnd_found.add(arch)
+                dnd_found["tcl9" if directory.endswith("-tcl9") else "tcl8"].add(arch)
                 break
         if expected is None and not UNIVERSAL <= found:
             raise RuntimeError(f"Single-architecture core binary: {rel}: {sorted(found)}")
         records.append({"file": rel, "architectures": sorted(found),
                         "loaded_for": expected or "both"})
-    if dnd_found != UNIVERSAL:
-        raise RuntimeError(f"Missing TkDnD runtime(s): {UNIVERSAL - dnd_found}")
+    selected = dnd_found["tcl9"] if dnd_found["tcl9"] else dnd_found["tcl8"]
+    if selected != UNIVERSAL:
+        raise RuntimeError(f"Missing TkDnD runtime(s): {UNIVERSAL - selected}")
     main = app / "Contents" / "MacOS" / "PT Clip Viewer"
     require_universal(main)
     if not any("_tkinter" in record["file"] for record in records):

@@ -1,9 +1,9 @@
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
-py -3.12 -m venv .venv-build
-if ($LASTEXITCODE -ne 0) { throw 'Python 3.12 is required.' }
+py -3.14 -m venv .venv-build
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.14 is required.' }
 $python = Join-Path $PSScriptRoot '.venv-build\Scripts\python.exe'
-& $python -m pip install -r requirements-build.txt
+& $python -m pip install --require-hashes -r requirements-build.lock
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
 & $python build_app.py
 if ($LASTEXITCODE -ne 0) { throw 'Application build failed.' }
