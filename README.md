@@ -22,3 +22,9 @@ TkDnD 以两个独立原生库按进程架构加载。
 具体最低 macOS 版本、拖拽交互和排版仍需在目标机器上验收。
 
 详细步骤见 [Mac通用版云端打包说明](Mac通用版云端打包说明.txt)。
+
+## 已完成的构建验证
+
+[Universal 2 构建与双架构原生测试](https://github.com/JaminFX/pt_clip_viewer/actions/runs/42579664876) 已全部通过。
+同一 DMG 在 macOS 15 的 Intel x86_64 与 Apple Silicon arm64 环境中完成验证。
+

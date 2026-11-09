@@ -8,12 +8,14 @@ PT Clip Viewer 3.9.7
    这是源码包，不是已构建好的 .app 或 .dmg。
    Universal 2 更新包为 release/PT_Clip_Viewer_3.9.7_macOS_Universal2_BuildKit.zip。
    无 Mac 的用户可参照“Mac通用版云端打包说明.txt”，使用附带的 GitHub Actions。
-3. 原来的 pt_clip_viewer.exe、_internal 和 v3_9_6.py 原样保留。
+3. release/PT_Clip_Viewer_3.9.7_macOS_Universal2.dmg：已构建的 Mac 通用安装镜像。
+   同一 DMG 已通过 Intel 与 Apple Silicon 的 macOS 15 云端原生验证。
+4. 原来的 pt_clip_viewer.exe、_internal 和 v3_9_6.py 原样保留。
 
 Mac 使用与构建
 ---------------
-本次开发环境是 Windows，没有在真实 macOS 上运行验证。
-PyInstaller 需要在对应系统上构建，最终 Mac 应用必须在 Mac 上生成。
+本地开发环境为 Windows；Mac 应用已通过 GitHub Actions 的 macOS 云端环境构建和验证。
+现有 DMG 可直接复制到 Mac 上安装，无需 Python。以下步骤用于以后重新构建。
 
 1. 从 https://www.python.org/downloads/macos/ 安装带有 Tk 的 Python 3.12 universal2。
    不建议直接使用系统自带 Python；构建脚本会检查是否使用原生 Aqua Tk。
@@ -31,7 +33,7 @@ PyInstaller 需要在对应系统上构建，最终 Mac 应用必须在 Mac 上�
 也可以设置 PT_PYTHON 为指定 Python 路径后运行脚本。
 构建会对打包后的界面、TkDnD、中文导入和剪贴板执行自检。
 Mac 包只做本地 ad-hoc 签名，没有 Apple Developer ID 签名和公证；
-向其他人分发前，需要在 Mac 上完成签名、公证和实际操作验收。
+公开分发时可再补充 Developer ID 签名和 Apple 公证；完整交互仍需人工验收。
 
 本次适配
 --------
