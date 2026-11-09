@@ -124,6 +124,10 @@ class ActionButton(tk.Canvas):
         self._paint()
 
     def _leave(self, event):
+        # Moving between the native text label and its canvas stays in the button.
+        if (0 <= event.x_root-self.winfo_rootx() < self.winfo_width()
+                and 0 <= event.y_root-self.winfo_rooty() < self.winfo_height()):
+            return
         self._hovered = self._pressed = False
         self._paint()
 

@@ -82,6 +82,7 @@ def run_visual_checks(App, output):
             assert not triggered, "Disabled label invoked a command"
             slot["redo_btn"].config(command=original)
             app.copy_single_btn._text_label.event_generate("<ButtonPress-1>", x=2, y=2)
+            app.copy_single_btn.event_generate("<Leave>", x=4, y=4)
             app.copy_single_btn._text_label.event_generate("<ButtonRelease-1>", x=2, y=2)
             assert "00:00:03:00-00:00:04:12" in app.clipboard_get()
             assert app.copy_single_btn._icon == "check"
