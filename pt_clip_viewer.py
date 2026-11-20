@@ -47,7 +47,7 @@ except Exception:
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
 
-if sys.platform == "win32":
+if sys.platform == "win32" and not getattr(sys.modules.get("tkinter"), "_pt_font_patch_applied", False):
     # 🛡️ 注入2：解耦级组件字族剥离与动态重绘机制
     try:
         import tkinter as _vfr_tk
@@ -94,6 +94,7 @@ if sys.platform == "win32":
                 super().__init__(*args, **kwargs)
                 self.option_add("*Font", ("Microsoft YaHei UI", 10))
         _vfr_tk.Tk = _VFR_PatchedTk
+        _vfr_tk._pt_font_patch_applied = True
     except Exception:
         pass
 
@@ -118,6 +119,7 @@ from edl_parser import parse_edl, MAX_EDL_BYTES
 from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
 from ui_scroll import ScrollRegion
 from clip_duplicates import unique_lines, new_lines as filter_new_lines
+from window_geometry import choose_bounds, current_bounds, geometry_string, workareas
 
 # ── 核心修复：开启 Windows 硬件级高 DPI 感知，彻底解决字体模糊 ─────────────────
 if sys.platform == "win32":
@@ -147,7 +149,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.12"
+APP_VERSION = "v3.9.13"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -396,8 +398,13 @@ def show_about(parent):
 # ── 主应用 ────────────────────────────────────────────────────────────────────
 
 class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
-    def __init__(self, open_dialog=False):
+    def __init__(self, open_dialog=None, remember_window=True):
         super().__init__()
+        self.withdraw()
+        self._remember_window = remember_window
+        self._closing = False
+        self._startup_open_after = None
+        self._last_window_bounds = None
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.minsize(960, 600)
         self.configure(bg=BG)
@@ -412,6 +419,11 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         # 加载持久化配置
         self._cfg = load_config()
+        try:
+            startup_open = self._cfg.getboolean("settings", "open_file_on_start", fallback=False)
+        except ValueError:
+            startup_open = False
+        self._open_file_on_start = tk.BooleanVar(value=startup_open)
         ask_val = self._cfg["settings"].get("smart_merge_ask", "true").lower() != "false"
         self._smart_merge_ask = tk.BooleanVar(value=ask_val)
 
@@ -424,6 +436,17 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
         self._build_ui()
         self._toggle_edit_mode()      # 默认打开编辑模式
+        saved_bounds = None
+        if remember_window and self._cfg.has_section("window"):
+            try:
+                saved_bounds = tuple(self._cfg.getint("window", key) for key in ("width", "height", "x", "y"))
+            except (ValueError, configparser.Error):
+                pass
+        self._last_window_bounds = choose_bounds(saved_bounds, workareas(self))
+        self.minsize(min(960, self._last_window_bounds[0]), min(600, self._last_window_bounds[1]))
+        self.geometry(geometry_string(self._last_window_bounds))
+        self.bind("<Configure>", self._remember_normal_bounds, add="+")
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
         self.bind(f"<{MODIFIER}-o>", lambda e: self.load_file())
         if IS_MAC:
             self.createcommand("tk::mac::Quit", self.destroy)
@@ -435,8 +458,38 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             menu.add_cascade(label="文件", menu=file_menu)
             self.configure(menu=menu)
             self.bind("<Command-w>", lambda e: self.destroy())
-        if open_dialog:
-            self.after(100, self.load_file)
+        self.deiconify()
+        should_open = self._open_file_on_start.get() if open_dialog is None else open_dialog
+        if should_open:
+            self._startup_open_after = self.after(300, self._open_startup_file)
+
+    def _open_startup_file(self):
+        self._startup_open_after = None
+        if not self.tracks and self.grab_current() is None:
+            self.load_file()
+
+    def _remember_normal_bounds(self, event=None):
+        if event is not None and event.widget != self:
+            return
+        if self.state() == "normal" and self.winfo_ismapped() and self.winfo_width() > 1:
+            self._last_window_bounds = current_bounds(self)
+
+    def destroy(self):
+        if self._closing:
+            return
+        self._closing = True
+        if self._startup_open_after is not None:
+            self.after_cancel(self._startup_open_after)
+            self._startup_open_after = None
+        if self._remember_window and self._last_window_bounds is not None:
+            self._remember_normal_bounds()
+            self._cfg["window"] = dict(zip(("width", "height", "x", "y"), map(str, self._last_window_bounds)))
+            save_config(self._cfg)
+        # Every widget in this Tcl interpreter is closing. Prevent delayed
+        # button/status callbacks from firing after their commands are deleted.
+        for timer in self.tk.splitlist(self.tk.call("after", "info")):
+            self.tk.call("after", "cancel", timer)
+        super().destroy()
 
     # ── 界面构建 ─────────────────────────────────────────────────────────────
 
@@ -960,6 +1013,15 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
                  bg=BG2, fg=TEXT, font=FONT_UI_BOLD).pack(anchor="w")
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(10, 14))
 
+        startup_var = tk.BooleanVar(win, value=self._open_file_on_start.get())
+        tk.Label(body, text="启动行为", bg=BG2, fg=AMBER, font=FONT_UI_BOLD).pack(anchor="w")
+        tk.Checkbutton(body, text="启动时自动弹出打开文件窗口", variable=startup_var,
+                       bg=BG2, fg=TEXT2, selectcolor=BG4, activebackground=BG2,
+                       activeforeground=TEXT, font=FONT_UI_REG, cursor="hand2").pack(anchor="w", pady=(6, 0))
+        tk.Label(body, text="下次启动时生效；也可随时点击打开或拖入文件。",
+                 bg=BG2, fg=TEXT3, font=FONT_UI_SM).pack(anchor="w", pady=(4, 0))
+        tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(14, 12))
+
         def section(title, var, ask_text):
             """一个设置板块：标题 + 「每次提示 / 自动合并」单选"""
             sec = tk.Frame(body, bg=BG2)
@@ -981,6 +1043,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(16, 12))
 
         def _save_and_close():
+            self._open_file_on_start.set(startup_var.get())
+            self._cfg["settings"]["open_file_on_start"] = str(startup_var.get())
             self._cfg["settings"]["smart_merge_ask"]   = str(self._smart_merge_ask.get())
             self._cfg["settings"]["reading_merge_ask"] = str(self._reading_merge_ask.get())
             save_config(self._cfg)
@@ -1433,10 +1497,17 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--ui-preview":
         from ui_validation import run_visual_checks
-        run_visual_checks(App, sys.argv[2])
+        try:
+            run_visual_checks(App, sys.argv[2])
+        except Exception:
+            import traceback
+            output = Path(sys.argv[2])
+            output.mkdir(parents=True, exist_ok=True)
+            (output / "validation-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
+            raise SystemExit(1)
     elif len(sys.argv) == 3 and sys.argv[1] == "--smoke-test":
         import tempfile
-        app = App(open_dialog=False)
+        app = App(open_dialog=False, remember_window=False)
         try:
             if not DND_AVAILABLE:
                 raise RuntimeError("TkDnD was not bundled")

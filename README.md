@@ -1,4 +1,4 @@
-# PT Clip Viewer 3.9.12
+# PT Clip Viewer 3.9.13
 
 Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应用 LOGO 保持原始亮蓝版本。
 
@@ -6,6 +6,7 @@ Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应�
 
 - `release/`：当前 Windows 安装包、Mac Universal 2 DMG、Mac 使用说明和校验和。
 - Windows 便携版：`dist/pt_clip_viewer/pt_clip_viewer.exe`，请保留同目录 `_internal`，不要只复制单个 EXE。
+- 设置中可选择启动时是否弹出打开文件窗口（默认关闭）；主窗口关闭时记住位置与大小，首次启动或旧位置不可见时居中。
 - Mac 安装、在系统设置中允许打开及固定到 Dock / 启动列表：见 [Mac 使用说明](Mac使用说明.html)。
 - 审核结论与残余风险：见 [安全审核报告](安全审核/安全审核报告.html)。
 
@@ -29,6 +30,7 @@ python verify_universal.py
 python verify_security.py
 python verify_scrolling.py
 python verify_duplicates.py
+python verify_preferences.py
 python ui_validation.py build/ui-preview
 ```
 

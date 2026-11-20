@@ -40,7 +40,9 @@ def capture(widget, path):
 def run_visual_checks(App, output):
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    app = App(open_dialog=False)
+    from verify_preferences import run_packaged_preference_checks
+    run_packaged_preference_checks(App)
+    app = App(open_dialog=False, remember_window=False)
     try:
         width = max(960, min(1400, app.winfo_screenwidth()-40))
         height = max(600, min(820, app.winfo_screenheight()-100))
