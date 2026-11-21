@@ -2,7 +2,7 @@ PT Clip Viewer — Mac 安装与日常使用
 =================================
 
 一、先安装到“应用程序”
-1. 打开 PT_Clip_Viewer_3.9.14_macOS_Universal2.dmg。
+1. 打开 PT_Clip_Viewer_3.9.15_macOS_Universal2.dmg。
 2. 将 PT Clip Viewer.app 拖到 Applications（应用程序）文件夹。
 3. 更新旧版时，先退出正在运行的 PT Clip Viewer，再选择替换。
 4. 在访达左侧打开“应用程序”，从这里打开 PT Clip Viewer。

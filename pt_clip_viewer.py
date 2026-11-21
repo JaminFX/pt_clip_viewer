@@ -149,7 +149,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.14"
+APP_VERSION = "v3.9.15"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -1076,7 +1076,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         tk.Label(name_row, text="默认名称：", bg=BG2, fg=TEXT2, font=FONT_UI_REG).pack(side="left")
         tk.Entry(name_row, textvariable=unnamed_name, bg=BG4, fg=TEXT,
                  insertbackground=TEXT, font=FONT_UI_REG, width=22).pack(side="left")
-        tk.Label(body, text="所有分组之间均保留一个空行；留空默认名称时使用“未命名分组”。",
+        tk.Label(body, text="仅无标题的分组用空行隔开；留空默认名称时使用“未命名分组”。",
                  bg=BG2, fg=TEXT3, font=FONT_UI_SM).pack(anchor="w", pady=(6, 0))
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(14, 12))
 
@@ -1490,6 +1490,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
     def _edit_copy_all(self):
         parts = []
+        previous_untitled = False
         skipped = 0
         duplicates = 0
         for slot in self._slots:
@@ -1500,12 +1501,14 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             # Deduplicate inside each group; preserve distinct group ownership.
             clips, count = unique_lines(slot["clips"])
             duplicates += count
-            if not label and not clips:
+            if not clips:
                 continue
             if not label and self._unnamed_group_mode.get() == "name":
                 label = self._unnamed_group_name.get().strip() or "未命名分组"
             block = ([f"{label}："] if label else []) + clips
-            parts.append("\n".join(block))
+            separator = "\n\n" if not label or previous_untitled else "\n"
+            parts.append((separator if parts else "") + "\n".join(block))
+            previous_untitled = not bool(label)
 
         if not parts:
             if skipped:
@@ -1514,13 +1517,13 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
                 messagebox.showinfo("提示", "没有任何内容可复制，请先添加片段", parent=self)
             return
 
-        text = "\n\n".join(parts)
+        text = "".join(parts)
         self._notify_duplicates(duplicates, "复制勾选分组（各分组内去重）")
         self.clipboard_clear()
         self.clipboard_append(text)
         self._edit_copy_btn.config(text="✅  已复制！", bg="#16a34a", fg="white")
         self.after(1500, lambda: self._edit_copy_btn.config(text="📋 复制勾选分组", bg=AMBER, fg=BG))
-        active = sum(1 for s in self._slots if s["enabled"].get())
+        active = len(parts)
         self._set_status(f"✅  已复制 {active} 个激活分组的内容到剪贴板")
 
     def _global_undo(self, event=None):

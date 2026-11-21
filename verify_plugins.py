@@ -80,7 +80,7 @@ def run_plugin_checks(app):
             app._unnamed_group_mode.set("name")
             app._unnamed_group_name.set("未命名分组")
             app._edit_copy_all()
-            if app.clipboard_get() != f"命名分组：\n{TIME_A}\n\n未命名分组：\n{TIME_B}":
+            if app.clipboard_get() != f"命名分组：\n{TIME_A}\n未命名分组：\n{TIME_B}":
                 raise RuntimeError("Named fallback group copy or per-group dedup failed")
             app._unnamed_group_mode.set("blank")
             app._edit_copy_all()
@@ -95,6 +95,33 @@ def run_plugin_checks(app):
             app._edit_copy_all()
             if app.clipboard_get().count("自定名称：") != 2:
                 raise RuntimeError("Custom unnamed group label was ignored")
+            # Empty enabled groups never contribute a heading or copied count.
+            empty = app._slots[2]
+            empty["enabled"].set(True)
+            empty["label"].set("不应复制的空分组")
+            empty["clips"][:] = []
+            first["label"].set("朗诵02")
+            second["label"].set("朗诵01")
+            for mode in ("name", "blank"):
+                app._unnamed_group_mode.set(mode)
+                app._edit_copy_all()
+                if app.clipboard_get() != f"朗诵02：\n{TIME_A}\n朗诵01：\n{TIME_B}":
+                    raise RuntimeError("Named groups must be consecutive and empty groups skipped")
+                if "2 个" not in app.status_lbl.cget("text"):
+                    raise RuntimeError("Copied group count includes an empty group")
+            # An unnamed group gets separation on both sides, including before
+            # a subsequent named group, without adding a trailing blank line.
+            first["label"].set("")
+            app._edit_copy_all()
+            if app.clipboard_get() != f"{TIME_A}\n\n朗诵01：\n{TIME_B}":
+                raise RuntimeError("Untitled-to-named boundary is not separated")
+            for slot in app._slots:
+                slot["clips"][:] = []
+            notice.reset_mock()
+            previous = app.clipboard_get()
+            app._edit_copy_all()
+            if notice.call_count != 1 or app.clipboard_get() != previous:
+                raise RuntimeError("All-empty groups must show a notice and preserve clipboard")
         finally:
             app._unnamed_group_mode.set(old_mode)
             app._unnamed_group_name.set(old_name)
