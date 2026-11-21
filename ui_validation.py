@@ -47,6 +47,8 @@ def run_visual_checks(App, output):
         width = max(960, min(1400, app.winfo_screenwidth()-40))
         height = max(600, min(820, app.winfo_screenheight()-100))
         app.geometry(f"{width}x{height}+20+30")
+        from verify_plugins import run_plugin_checks
+        run_plugin_checks(app)
         from verify_scrolling import run_scroll_checks
         run_scroll_checks(app)
         from verify_duplicates import run_duplicate_checks

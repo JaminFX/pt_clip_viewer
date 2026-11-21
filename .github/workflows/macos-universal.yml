@@ -47,6 +47,7 @@ jobs:
           .venv-macos/bin/python verify_scrolling.py
           .venv-macos/bin/python verify_duplicates.py
           .venv-macos/bin/python verify_preferences.py
+          .venv-macos/bin/python verify_plugins.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macOS-Universal2-candidate

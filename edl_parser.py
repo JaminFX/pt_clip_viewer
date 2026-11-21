@@ -31,7 +31,45 @@ def read_export(filepath):
 
 
 def parse_edl(filepath):
+    return parse_tracks(read_export(filepath))
+
+
+def parse_plugins(text):
+    """Read the session listing only; preserve order and separate format rows."""
+    names = []
+    in_listing = False
+    columns = None
+    for line in text.splitlines():
+        heading = "".join(line.split()).upper()
+        if heading == "PLUG-INSLISTING":
+            in_listing = True
+            continue
+        if not in_listing:
+            continue
+        if heading.endswith("LISTING") and heading != "PLUG-INSLISTING":
+            break
+        if "PLUG-IN NAME" in line and "VERSION" in line:
+            columns = (line.index("PLUG-IN NAME"), line.index("VERSION"))
+            continue
+        if columns is None or not line.strip():
+            continue
+        if "\t" in line:
+            fields = line.split("\t")
+            name = fields[1].strip() if len(fields) >= 3 else ""
+        else:
+            name = line[columns[0]:columns[1]].strip()
+        if name:
+            names.append(name)
+    return names
+
+
+def parse_export(filepath):
+    """Read once so tracks and plug-ins always come from the same snapshot."""
     text = read_export(filepath)
+    return parse_tracks(text), parse_plugins(text)
+
+
+def parse_tracks(text):
     tracks = []
     current = None
     seen = set()

@@ -115,7 +115,7 @@ import tkinter as tk
 import configparser
 from tkinter import filedialog, ttk, messagebox
 from pathlib import Path
-from edl_parser import parse_edl, MAX_EDL_BYTES
+from edl_parser import parse_edl, parse_export, MAX_EDL_BYTES
 from ui_widgets import ActionButton, apply_dark_inputs, ASSETS, draw_checkbox, VisibleScrollbar
 from ui_scroll import ScrollRegion
 from clip_duplicates import unique_lines, new_lines as filter_new_lines
@@ -149,7 +149,7 @@ except ImportError:
 
 # ── 版本 ─────────────────────────────────────────────────────────────────────
 APP_NAME    = "PT Clip Viewer"
-APP_VERSION = "v3.9.13"
+APP_VERSION = "v3.9.14"
 
 # ── 核心字体修复（完美适配界面像素对齐，防止笔画粗细不均） ───────────────────────
 # 经测试，使用 "Microsoft YaHei UI" 替代 "Microsoft YaHei"，能完美解决 Windows 界面渲染时笔画变粗变形的问题
@@ -413,6 +413,8 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         apply_icon(self)
 
         self.tracks       = []
+        self.plugins      = []
+        self._export_loaded = False
         self.view_idx     = None
         self.selected_set = set()
         self._edit_mode   = False
@@ -430,6 +432,10 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         # "Reading 空隙" 检测：True=每次弹窗提示，False=自动合并不再提示
         reading_ask_val = self._cfg["settings"].get("reading_merge_ask", "true").lower() != "false"
         self._reading_merge_ask = tk.BooleanVar(value=reading_ask_val)
+        self._unnamed_group_mode = tk.StringVar(value=(
+            "blank" if self._cfg["settings"].get("unnamed_group_mode") == "blank" else "name"))
+        self._unnamed_group_name = tk.StringVar(value=(
+            self._cfg["settings"].get("unnamed_group_name", "未命名分组").strip() or "未命名分组"))
 
         self._icon_settings_btn   = tk.PhotoImage(file=str(ASSETS / "settings.png"))
         self._icon_settings_title = tk.PhotoImage(file=str(ASSETS / "settings.png"))
@@ -575,6 +581,11 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         btns = tk.Frame(ctrl, bg=BG)
         btns.pack(side="right")
 
+        self.copy_plugins_btn = ActionButton(btns, text="复制插件信息", command=self._copy_plugins,
+                                            bg="#7c3aed", fg="white", relief="flat", font=FONT_UI_BOLD,
+                                            padx=10, pady=4, cursor="hand2")
+        self.copy_plugins_btn.pack(side="left", padx=(0, 6))
+
         self.copy_single_btn = ActionButton(btns, text="📋 复制当前轨道", command=self._copy_single, bg="#087ea4", fg="white", relief="flat", font=FONT_UI_BOLD, padx=10, pady=4, cursor="hand2", state="disabled")
         self.copy_single_btn.pack(side="left", padx=(0, 6))
 
@@ -659,27 +670,37 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
     def _load_path(self, path: str):
         try:
-            tracks = parse_edl(path)
+            tracks, plugins = parse_export(path)
         except ValueError as error:
             self._set_status(f"❌ {error}")
             return
         except OSError:
             self._set_status("❌ 无法读取文件，请确认文件仍存在并且有读取权限")
             return
-        if not tracks:
+        if not tracks and not plugins:
             self._set_status("❌ 未解析到任何轨道，请检查文件格式")
             return
 
         self.tracks       = tracks
+        self.plugins      = plugins
+        self._export_loaded = True
         self.view_idx     = None
         self.selected_set = set(range(len(tracks)))
 
         total = sum(len(t["clips"]) for t in tracks)
         self.file_label.config(text=Path(path).name, fg=TEXT)
         self._set_status(f"✅  {Path(path).name}  ·  {len(tracks)} 条轨道  ·  共 {total} 个片段")
-        self.copy_all_btn.config(state="normal")
+        self.copy_all_btn.config(state="normal" if tracks else "disabled")
+        self.copy_single_btn.config(state="disabled")
         self._build_track_list()
-        self._select_view(0)
+        if tracks:
+            self._select_view(0)
+        else:
+            self.tree.delete(*self.tree.get_children())
+            self.cur_track_lbl.config(text="仅检测到插件信息")
+            self.cur_count_lbl.config(text="")
+            self._set_preview("")
+            self._update_copy_sel_btn()
         self._update_sel_label()
 
     # ── 轨道列表构建 ─────────────────────────────────────────────────────────
@@ -1042,11 +1063,33 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
                 "检测到 Reading 空隙被其他轨道填补时弹窗提示")
         tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(16, 12))
 
+        unnamed_mode = tk.StringVar(win, value=self._unnamed_group_mode.get())
+        unnamed_name = tk.StringVar(win, value=self._unnamed_group_name.get())
+        tk.Label(body, text="未命名分组的复制方式", bg=BG2, fg=AMBER,
+                 font=FONT_UI_BOLD).pack(anchor="w")
+        for title, value in (("使用下方默认名称", "name"), ("不加名称，用空行分隔", "blank")):
+            tk.Radiobutton(body, text=title, variable=unnamed_mode, value=value,
+                           bg=BG2, fg=TEXT2, selectcolor=BG4, activebackground=BG2,
+                           activeforeground=TEXT, font=FONT_UI_REG, cursor="hand2").pack(anchor="w", pady=(4, 0))
+        name_row = tk.Frame(body, bg=BG2)
+        name_row.pack(fill="x", pady=(6, 0))
+        tk.Label(name_row, text="默认名称：", bg=BG2, fg=TEXT2, font=FONT_UI_REG).pack(side="left")
+        tk.Entry(name_row, textvariable=unnamed_name, bg=BG4, fg=TEXT,
+                 insertbackground=TEXT, font=FONT_UI_REG, width=22).pack(side="left")
+        tk.Label(body, text="所有分组之间均保留一个空行；留空默认名称时使用“未命名分组”。",
+                 bg=BG2, fg=TEXT3, font=FONT_UI_SM).pack(anchor="w", pady=(6, 0))
+        tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(14, 12))
+
         def _save_and_close():
             self._open_file_on_start.set(startup_var.get())
             self._cfg["settings"]["open_file_on_start"] = str(startup_var.get())
             self._cfg["settings"]["smart_merge_ask"]   = str(self._smart_merge_ask.get())
             self._cfg["settings"]["reading_merge_ask"] = str(self._reading_merge_ask.get())
+            name = " ".join(unnamed_name.get().split()) or "未命名分组"
+            self._unnamed_group_mode.set(unnamed_mode.get())
+            self._unnamed_group_name.set(name)
+            self._cfg["settings"]["unnamed_group_mode"] = unnamed_mode.get()
+            self._cfg["settings"]["unnamed_group_name"] = name.replace("%", "%%")
             save_config(self._cfg)
             win.destroy()
 
@@ -1069,6 +1112,19 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
         win.geometry(f"{w}x{h}+{px}+{py}")
         win.deiconify()         # 位置/内容都就绪后再显示，避免闪现
         win.grab_set()
+
+    def _copy_plugins(self):
+        if not self._export_loaded:
+            messagebox.showinfo("复制插件信息", "请先打开 Pro Tools 导出的文本文件。", parent=self)
+            return
+        if not self.plugins:
+            messagebox.showinfo("未检测到插件信息",
+                                "未检测到插件信息。\n请检查 Pro Tools 导出文本时是否勾选了插件信息（Plug-In List），然后重新导出并打开。",
+                                parent=self)
+            return
+        self._do_copy("工程使用插件：\n" + "\n".join(self.plugins),
+                      self.copy_plugins_btn, "复制插件信息", "#7c3aed")
+        self._set_status(f"✅  已复制 {len(self.plugins)} 条插件名称")
 
     def _copy_single(self):
         if self.view_idx is None:
@@ -1446,9 +1502,10 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
             duplicates += count
             if not label and not clips:
                 continue
-            if label:
-                parts.append(f"{label}：")
-            parts.extend(clips)
+            if not label and self._unnamed_group_mode.get() == "name":
+                label = self._unnamed_group_name.get().strip() or "未命名分组"
+            block = ([f"{label}："] if label else []) + clips
+            parts.append("\n".join(block))
 
         if not parts:
             if skipped:
@@ -1457,7 +1514,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
                 messagebox.showinfo("提示", "没有任何内容可复制，请先添加片段", parent=self)
             return
 
-        text = "\n".join(parts)
+        text = "\n\n".join(parts)
         self._notify_duplicates(duplicates, "复制勾选分组（各分组内去重）")
         self.clipboard_clear()
         self.clipboard_append(text)

@@ -1,4 +1,4 @@
-# PT Clip Viewer 3.9.13
+# PT Clip Viewer 3.9.14
 
 Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应用 LOGO 保持原始亮蓝版本。
 
@@ -9,6 +9,11 @@ Pro Tools 导出文本中的片段时间码查看、合并与复制工具。应�
 - 设置中可选择启动时是否弹出打开文件窗口（默认关闭）；主窗口关闭时记住位置与大小，首次启动或旧位置不可见时居中。
 - Mac 安装、在系统设置中允许打开及固定到 Dock / 启动列表：见 [Mac 使用说明](Mac使用说明.html)。
 - 审核结论与残余风险：见 [安全审核报告](安全审核/安全审核报告.html)。
+
+## 新增功能
+
+- 紫色“复制插件信息”按钮：复制“工程使用插件：”及插件名，按导出列表保留顺序和重复名称；未检测到时提示检查导出插件信息选项。
+- 设置中的“未命名分组的复制方式”：可自定义默认名称，或选择留空；复制的各分组之间始终用空行分隔。
 
 ## 构建
 
@@ -28,6 +33,7 @@ Mac：运行 `bash build_macos.command`。默认使用 `/Library/Frameworks/Pyth
 python verify_release.py
 python verify_universal.py
 python verify_security.py
+python verify_plugins.py
 python verify_scrolling.py
 python verify_duplicates.py
 python verify_preferences.py
