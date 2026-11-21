@@ -66,6 +66,10 @@ def run_plugin_checks(app):
             app._copy_plugins()
             if app.tracks or app.copy_single_btn.cget("state") != "disabled" or app.preview.get("1.0", "end").strip():
                 raise RuntimeError("Plug-in-only export retained stale track state")
+            with patch.object(app, "load_file") as picker:
+                app._open_startup_file()
+                if picker.called:
+                    raise RuntimeError("Loaded plug-in-only export must suppress delayed startup picker")
             for slot in app._slots:
                 slot["enabled"].set(False)
             first, second = app._slots[:2]

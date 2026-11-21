@@ -471,7 +471,7 @@ class App(TkinterDnD.Tk if DND_AVAILABLE else tk.Tk):
 
     def _open_startup_file(self):
         self._startup_open_after = None
-        if not self.tracks and self.grab_current() is None:
+        if not self.tracks and not self._export_loaded and self.grab_current() is None:
             self.load_file()
 
     def _remember_normal_bounds(self, event=None):
